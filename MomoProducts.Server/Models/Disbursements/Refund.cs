@@ -2,6 +2,7 @@
 {
     public class Refund
     {
+ 
         public string Amount { get; set; }
 
         public string Currency { get; set; }
@@ -12,6 +13,6 @@
 
         public string PayeeNote { get; set; }
 
-        public string ReferenceIdToRefund { get; set; }
+        public string ReferenceId { get; set; }
     }
 }

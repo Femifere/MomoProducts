@@ -1,8 +1,9 @@
 ﻿using MomoProducts.Server.Models.Common;
-namespace MomoProducts.Server.Models
+namespace MomoProducts.Server.Models.Remittance
 {
     public class CashTransfer
     {
+        public string ReferenceId { get; set; }
         public string Amount { get; set; }
         public string Currency { get; set; }
         public Payee Payee { get; set; }

@@ -12,6 +12,6 @@
 
         public string PayeeNote { get; set; }
 
-        public string ReferenceIdToRefund { get; set; }
+        public string ReferenceId { get; set; }
     }
 }

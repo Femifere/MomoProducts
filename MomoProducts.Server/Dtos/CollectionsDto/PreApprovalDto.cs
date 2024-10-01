@@ -9,6 +9,7 @@
         public PayerDto Payer { get; set; }
 
         public string PayerCurrency { get; set; }
+        public string Status { get; set; }
 
         public string PayerMessage { get; set; }
 

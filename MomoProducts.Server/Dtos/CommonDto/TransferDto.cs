@@ -1,9 +1,9 @@
-﻿namespace MomoProducts.Server.Dtos.RemittanceDto
+﻿namespace MomoProducts.Server.Dtos.CommonDto
 {
-    using MomoProducts.Server.Dtos.CommonDto;
-
     public class TransferDto
     {
+
+        public string ReferenceId { get; set; }
         public string Amount { get; set; }
 
         public string Currency { get; set; }

@@ -1,9 +1,9 @@
-﻿namespace MomoProducts.Server.Models.Disbursements
+﻿namespace MomoProducts.Server.Models.Common
 {
-    using MomoProducts.Server.Models.Common;
-
     public class Transfer
     {
+
+        public string ReferenceId { get; set; }
         public string Amount { get; set; }
 
         public string Currency { get; set; }

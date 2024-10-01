@@ -6,7 +6,7 @@
 
         public string TokenType { get; set; }
 
-        public int ExpiresIn { get; set; }
+        public DateTime ExpiresIn { get; set; }
 
         public string Scope { get; set; }
 

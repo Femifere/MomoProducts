@@ -4,6 +4,8 @@ namespace MomoProducts.Server.Dtos.RemittanceDto
 {
     public class CashTransferDto
     {
+
+        public string ReferenceId { get; set; }
         public string Amount { get; set; }
         public string Currency { get; set; }
         public PayeeDto Payee { get; set; } 
