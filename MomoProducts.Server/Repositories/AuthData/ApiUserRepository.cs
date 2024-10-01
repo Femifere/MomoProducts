@@ -17,5 +17,22 @@
         {
             return await _context.Set<ApiUser>().FirstOrDefaultAsync(u => u.ReferenceId == referenceId);
         }
+
+        public async Task<ApiUser> SaveApiUserAsync(ApiUser user)
+        {
+            var existingUser = await GetApiUserAsync(user.ReferenceId);
+
+            if (existingUser == null)
+            {
+                await _context.Set<ApiUser>().AddAsync(user);
+            }
+            else
+            {
+                _context.Entry(existingUser).CurrentValues.SetValues(user);
+            }
+
+            await _context.SaveChangesAsync();
+            return user;
+        }
     }
 }

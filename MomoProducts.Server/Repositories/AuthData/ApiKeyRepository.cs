@@ -17,5 +17,25 @@
         {
             return await _context.Set<ApiKey>().FirstOrDefaultAsync();
         }
+
+        public async Task<ApiKey> SaveApiKeyAsync(ApiKey apiKey)
+        {
+            await _context.Set<ApiKey>().AddAsync(apiKey);
+            await _context.SaveChangesAsync();
+            return apiKey;
+        }
+
+        public async Task<ApiKey> UpdateApiKeyAsync(ApiKey apiKey)
+        {
+            var existingApiKey = await GetApiKeyAsync();
+
+            if (existingApiKey != null)
+            {
+                _context.Entry(existingApiKey).CurrentValues.SetValues(apiKey);
+                await _context.SaveChangesAsync();
+            }
+
+            return apiKey;
+        }
     }
 }
