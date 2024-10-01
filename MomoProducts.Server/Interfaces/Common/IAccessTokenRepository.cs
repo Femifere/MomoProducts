@@ -1,11 +1,12 @@
 ﻿using MomoProducts.Server.Models.Common;
+using MomoProducts.Server.Dtos.CommonDto;
 
-    namespace MomoProducts.Server.Interfaces.Common
+namespace MomoProducts.Server.Interfaces.Common
     {
         public interface IAccessTokenRepository
         {
-            Task<AccessToken> GetAccessTokenAsync();
-            Task SaveAccessTokenAsync(AccessToken token);
+            Task<AccessTokenDto> GetAccessTokenAsync();
+            Task SaveAccessTokenAsync(AccessTokenDto tokenDto);
             
         }
     }

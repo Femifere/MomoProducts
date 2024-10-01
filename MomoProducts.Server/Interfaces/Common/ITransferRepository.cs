@@ -1,11 +1,11 @@
 ﻿using MomoProducts.Server.Models.Common;
-
+using MomoProducts.Server.Dtos.CommonDto;
 namespace MomoProducts.Server.Interfaces.Common
 {
     public interface ITransferRepository
     {
-        Task<Transfer> GetTransferByReferenceIdAsync(string referenceId);
-        Task<IEnumerable<Transfer>> GetAllTransfersAsync();
-        Task CreateTransferAsync(Transfer transfer);
+        Task<TransferDto> GetTransferByReferenceIdAsync(string referenceId);
+        Task<IEnumerable<TransferDto>> GetAllTransfersAsync();
+        Task CreateTransferAsync(TransferDto transferDto);
     }
 }

@@ -1,52 +1,52 @@
 ﻿namespace MomoProducts.Server.Repositories.Collections
 {
+    using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Collections;
     using MomoProducts.Server.Models.Collections;
-    using Microsoft.EntityFrameworkCore;
     using System.Threading.Tasks;
+    using MomoProducts.Server.Dtos.CollectionsDto;
 
     public class PreApprovalRepository : IPreApprovalRepository
     {
-        private readonly DbContext _context;
+        private readonly AppDbContext _context;
 
-        public PreApprovalRepository(DbContext context)
+        public PreApprovalRepository(AppDbContext context)
         {
             _context = context;
         }
 
-        public async Task<PreApproval> GetPreApprovalByReferenceIdAsync(string referenceId)
+        public async Task<PreApprovalDto> GetPreApprovalByReferenceIdAsync(string referenceId)
         {
-            return await _context.Set<PreApproval>().FirstOrDefaultAsync(pa => pa.ReferenceId == referenceId);
+            return await _context.Set<PreApprovalDto>().FirstOrDefaultAsync(pa => pa.ReferenceId == referenceId);
         }
 
-        public async Task<IEnumerable<PreApproval>> GetAllPreApprovalsAsync()
+        public async Task<IEnumerable<PreApprovalDto>> GetAllPreApprovalsAsync()
         {
-            return await _context.Set<PreApproval>().ToListAsync();
+            return await _context.Set<PreApprovalDto>().ToListAsync();
         }
 
-        public async Task CreatePreApprovalAsync(PreApproval preApproval)
+        public async Task CreatePreApprovalAsync(PreApprovalDto preApprovalDto)
         {
-            _context.Set<PreApproval>().Add(preApproval);
+            _context.Set<PreApprovalDto>().Add(preApprovalDto);
             await _context.SaveChangesAsync();
         }
 
-        public async Task UpdatePreApprovalAsync(PreApproval preApproval)
+        public async Task UpdatePreApprovalAsync(PreApprovalDto preApprovalDto)
         {
             // Check if the pre-approval exists in the database
-            var existingPreApproval = await _context.Set<PreApproval>().FirstOrDefaultAsync(pa => pa.ReferenceId == preApproval.ReferenceId);
+            var existingPreApproval = await _context.Set<PreApprovalDto>().FirstOrDefaultAsync(pa => pa.ReferenceId == preApprovalDto.ReferenceId);
 
             if (existingPreApproval != null)
             {
                 // Update the existing pre-approval with new values
-                existingPreApproval.Status = preApproval.Status;
-                
+                existingPreApproval.Status = preApprovalDto.Status;
 
                 // Save changes to the database
                 await _context.SaveChangesAsync();
             }
             else
             {
-                throw new KeyNotFoundException($"PreApproval with ReferenceId {preApproval.ReferenceId} not found.");
+                throw new KeyNotFoundException($"PreApproval with ReferenceId {preApprovalDto.ReferenceId} not found.");
             }
         }
     }

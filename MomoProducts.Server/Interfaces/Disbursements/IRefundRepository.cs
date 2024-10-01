@@ -1,11 +1,12 @@
 ﻿using MomoProducts.Server.Models.Disbursements;
+using MomoProducts.Server.Dtos.DisbursementsDto;
 
 namespace MomoProducts.Server.Interfaces.Disbursements
 {
     public interface IRefundRepository
     {
-        Task<Refund> GetRefundByReferenceIdAsync(string referenceId);
-        Task<IEnumerable<Refund>> GetAllRefundsAsync();
-        Task CreateRefundAsync(Refund refund);
+        Task<RefundDto> GetRefundByReferenceIdAsync(string referenceId);
+        Task<IEnumerable<RefundDto>> GetAllRefundsAsync();
+        Task CreateRefundAsync(RefundDto  refundDto);
     }
 }

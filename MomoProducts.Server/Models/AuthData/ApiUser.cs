@@ -3,5 +3,6 @@
     public class ApiUser
     {
         public string ReferenceId { get; set; }
+        public string ProviderCallbackHost { get; set; }
     }
 }

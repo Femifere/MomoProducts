@@ -2,7 +2,7 @@
 {
     public class AccessTokenDto
     {
-        public string AccessToken { get; set; }
+        public string accessToken { get; set; }
 
         public string TokenType { get; set; }
 

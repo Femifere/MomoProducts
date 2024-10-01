@@ -1,31 +1,32 @@
 ﻿namespace MomoProducts.Server.Repositories.Collections
 {
+    using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Collections;
     using MomoProducts.Server.Models.Collections;
-    using Microsoft.EntityFrameworkCore;
+    using MomoProducts.Server.Dtos.CollectionsDto;
 
     public class RequestToPayRepository : IRequestToPayRepository
     {
-        private readonly DbContext _context;
+        private readonly AppDbContext _context;
 
-        public RequestToPayRepository(DbContext context)
+        public RequestToPayRepository(AppDbContext context)
         {
             _context = context;
         }
 
-        public async Task<RequesttoPay> GetRequestToPayByReferenceIdAsync(string referenceId)
+        public async Task<RequestToPayDto> GetRequestToPayByReferenceIdAsync(string referenceId)
         {
-            return await _context.Set<RequesttoPay>().FirstOrDefaultAsync(rtp => rtp.ReferenceId == referenceId);
+            return await _context.Set<RequestToPayDto>().FirstOrDefaultAsync(rtp => rtp.ReferenceId == referenceId);
         }
 
-        public async Task<IEnumerable<RequesttoPay>> GetAllRequestsToPayAsync()
+        public async Task<IEnumerable<RequestToPayDto>> GetAllRequestsToPayAsync()
         {
-            return await _context.Set<RequesttoPay>().ToListAsync();
+            return await _context.Set<RequestToPayDto>().ToListAsync();
         }
 
-        public async Task CreateRequestToPayAsync(RequesttoPay requestToPay)
+        public async Task CreateRequestToPayAsync(RequestToPayDto requestToPayDto)
         {
-            _context.Set<RequesttoPay>().Add(requestToPay);
+            _context.Set<RequestToPayDto>().Add(requestToPayDto);
             await _context.SaveChangesAsync();
         }
     }

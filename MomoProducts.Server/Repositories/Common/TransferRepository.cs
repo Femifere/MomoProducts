@@ -1,31 +1,32 @@
 ﻿namespace MomoProducts.Server.Repositories.Common
 {
     using Microsoft.EntityFrameworkCore;
-    using MomoProducts.Server.Models.Common;
     using MomoProducts.Server.Interfaces.Common;
+    using MomoProducts.Server.Models.Common;
+    using MomoProducts.Server.Dtos.CommonDto;
 
     public class TransferRepository : ITransferRepository
     {
-        private readonly DbContext _context;
+        private readonly AppDbContext _context;
 
-        public TransferRepository(DbContext context)
+        public TransferRepository(AppDbContext context)
         {
             _context = context;
         }
 
-        public async Task<Transfer> GetTransferByReferenceIdAsync(string referenceId)
+        public async Task<TransferDto> GetTransferByReferenceIdAsync(string referenceId)
         {
-            return await _context.Set<Transfer>().FirstOrDefaultAsync(t => t.ReferenceId == referenceId);
+            return await _context.Set<TransferDto>().FirstOrDefaultAsync(t => t.ReferenceId == referenceId);
         }
 
-        public async Task<IEnumerable<Transfer>> GetAllTransfersAsync()
+        public async Task<IEnumerable<TransferDto>> GetAllTransfersAsync()
         {
-            return await _context.Set<Transfer>().ToListAsync();
+            return await _context.Set<TransferDto>().ToListAsync();
         }
 
-        public async Task CreateTransferAsync(Transfer transfer)
+        public async Task CreateTransferAsync(TransferDto transferDto)
         {
-            _context.Set<Transfer>().Add(transfer);
+            _context.Set<TransferDto>().Add(transferDto);
             await _context.SaveChangesAsync();
         }
     }

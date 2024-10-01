@@ -1,31 +1,32 @@
 ﻿namespace MomoProducts.Server.Repositories.Disbursements
 {
-    using MomoProducts.Server.Models.Disbursements;
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Disbursements;
+    using MomoProducts.Server.Models.Disbursements;
+    using MomoProducts.Server.Dtos.DisbursementsDto;
 
     public class DepositRepository : IDepositRepository
     {
-        private readonly DbContext _context;
+        private readonly AppDbContext _context;
 
-        public DepositRepository(DbContext context)
+        public DepositRepository(AppDbContext context)
         {
             _context = context;
         }
 
-        public async Task<Deposit> GetDepositByReferenceIdAsync(string referenceId)
+        public async Task<DepositDto> GetDepositByReferenceIdAsync(string referenceId)
         {
-            return await _context.Set<Deposit>().FirstOrDefaultAsync(d => d.ReferenceId == referenceId);
+            return await _context.Set<DepositDto>().FirstOrDefaultAsync(d => d.ReferenceId == referenceId);
         }
 
-        public async Task<IEnumerable<Deposit>> GetAllDepositsAsync()
+        public async Task<IEnumerable<DepositDto>> GetAllDepositsAsync()
         {
-            return await _context.Set<Deposit>().ToListAsync();
+            return await _context.Set<DepositDto>().ToListAsync();
         }
 
-        public async Task CreateDepositAsync(Deposit deposit)
+        public async Task CreateDepositAsync(DepositDto depositDto)
         {
-            _context.Set<Deposit>().Add(deposit);
+            _context.Set<DepositDto>().Add(depositDto);
             await _context.SaveChangesAsync();
         }
     }

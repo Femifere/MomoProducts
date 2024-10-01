@@ -1,16 +1,16 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MomoProducts.Server.Interfaces.Collections;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using MomoProducts.Server.Models.Collections;
-using System.Net.Http.Headers;
-using System.Text;
+using MomoProducts.Server.Services;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Threading.Tasks;
 using MomoProducts.Server.Interfaces.Common;
-using MomoProducts.Server.Models.Common;
-using MomoProducts.Server.Repositories.Common;
+using MomoProducts.Server.Dtos.CollectionsDto;
 
 namespace MomoProducts.Server.Controllers
 {
@@ -27,6 +27,7 @@ namespace MomoProducts.Server.Controllers
         private readonly IOauth2TokenRepository _oauth2TokenRepository;
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _config;
+        private readonly AuthService _authService;
 
         public CollectionsController(
             IInvoiceRepository invoiceRepository,
@@ -37,7 +38,8 @@ namespace MomoProducts.Server.Controllers
             IAccessTokenRepository accessTokenRepository,
             IOauth2TokenRepository oauth2TokenRepository,
             HttpClient httpClient,
-            IConfiguration config)
+            IConfiguration config,
+            AuthService authService)
         {
             _invoiceRepository = invoiceRepository;
             _paymentRepository = paymentRepository;
@@ -48,814 +50,305 @@ namespace MomoProducts.Server.Controllers
             _oauth2TokenRepository = oauth2TokenRepository;
             _httpClient = httpClient;
             _config = config;
+            _authService = authService;
         }
 
-        #region Helper Methods
+        #region Authorization & Token Endpoints
 
-        private async Task<string> GetAccessTokenAsync()
+        // Create Access Token
+        [HttpPost("create-access-token")]
+        public async Task<IActionResult> CreateAccessToken()
         {
-            var token = await _accessTokenRepository.GetAccessTokenAsync();
-            if (token == null || token.ExpiresIn < DateTime.UtcNow)
+            var encodedCredentials = await _authService.GetEncodedCredentialsAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", encodedCredentials);
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CreateAccessToken"]}";
+            var response = await _httpClient.PostAsync(url, null);
+
+            if (response.IsSuccessStatusCode)
             {
-                // Request a new access token
-                var authUrl = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CreateAccessToken"]}";
-
-                var clientId = _config["MomoApi:ClientId"];
-                var clientSecret = _config["MomoApi:ClientSecret"];
-                var body = new Dictionary<string, string>
-                {
-                    { "client_id", clientId },
-                    { "client_secret", clientSecret },
-                    { "grant_type", "client_credentials" }
-                };
-
-                var requestContent = new FormUrlEncodedContent(body);
-                var response = await _httpClient.PostAsync(authUrl, requestContent);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    var tokenResponse = JsonConvert.DeserializeObject<AccessTokenResponse>(responseContent);
-
-                    var newToken = new AccessToken
-                    {
-                        accessToken = tokenResponse.access_token,
-                        ExpiresIn = DateTime.UtcNow.AddSeconds(tokenResponse.expires_in - 60) // Subtract 60 seconds as buffer
-                    };
-
-                    // Save the new token
-                    await _accessTokenRepository.SaveAccessTokenAsync(newToken);
-
-                    return newToken.accessToken;
-                }
-                else
-                {
-                    throw new Exception("Failed to obtain access token from Momo API.");
-                }
+                var token = await response.Content.ReadAsStringAsync();
+                return Ok(token);
             }
-
-            return token.accessToken;
+            return BadRequest("Failed to create access token.");
         }
 
-        private string ReplaceUrlPlaceholders(string url, Dictionary<string, string> placeholders)
+        // Create OAuth2 Token
+        [HttpPost("create-oauth2-token")]
+        public async Task<IActionResult> CreateOauth2Token([FromHeader] string xTargetEnvironment)
         {
-            foreach (var placeholder in placeholders)
+            var encodedCredentials = await _authService.GetEncodedCredentialsAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", encodedCredentials);
+            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CreateOauth2Token"]}";
+            var response = await _httpClient.PostAsync(url, null);
+
+            if (response.IsSuccessStatusCode)
             {
-                url = url.Replace($"{{{placeholder.Key}}}", placeholder.Value);
+                var token = await response.Content.ReadAsStringAsync();
+                return Ok(token);
             }
-            return url;
+            return BadRequest("Failed to create OAuth2 token.");
+        }
+
+        // BC Authorize
+        [HttpPost("bc-authorize")]
+        public async Task<IActionResult> AuthorizeBusinessClient([FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
+        {
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:bc-authorize"]}";
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
+
+            if (!string.IsNullOrEmpty(xCallbackUrl))
+            {
+                _httpClient.DefaultRequestHeaders.Add("X-Callback-Url", xCallbackUrl);
+            }
+
+            var response = await _httpClient.PostAsync(url, null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return Ok(await response.Content.ReadAsStringAsync());
+            }
+            return BadRequest("Authorization failed.");
         }
 
         #endregion
 
         #region Invoice Endpoints
 
+        // Create Invoice
         [HttpPost("create-invoice")]
-        public async Task<IActionResult> CreateInvoice([FromBody] Invoice invoice)
+        public async Task<IActionResult> CreateInvoice([FromBody] InvoiceDto invoiceDto)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CreateInvoice"]}";
+            var content = new StringContent(JsonConvert.SerializeObject(invoiceDto), Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CreateInvoice"]}";
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.PostAsJsonAsync(url, invoice);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    var createdInvoice = JsonConvert.DeserializeObject<Invoice>(responseContent);
-
-                    await _invoiceRepository.CreateInvoiceAsync(createdInvoice);
-                    return Ok(createdInvoice);
-                }
-
-                var error = await response.Content.ReadAsStringAsync();
-                return BadRequest(error);
+                return Ok(await response.Content.ReadAsStringAsync());
             }
-            catch (Exception ex)
-            {
-                // Log exception (not implemented here)
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to create invoice.");
         }
 
-        [HttpGet("invoice-status/{referenceId}")]
-        public async Task<IActionResult> GetInvoiceStatus(string referenceId)
-        {
-            try
-            {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:GetInvoiceStatus"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "x-referenceId", referenceId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var status = await response.Content.ReadAsStringAsync();
-                    return Ok(status);
-                }
-
-                return NotFound("Invoice status not found.");
-            }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
+        // Cancel Invoice
         [HttpDelete("cancel-invoice/{referenceId}")]
         public async Task<IActionResult> CancelInvoice(string referenceId)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CancelInvoice"].Replace("{referenceId}", referenceId)}";
+            var response = await _httpClient.DeleteAsync(url);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:CancelInvoice"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "referenceId", referenceId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.DeleteAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    // Optionally update the invoice status in the repository
-                    var invoice = await _invoiceRepository.GetInvoiceByReferenceIdAsync(referenceId);
-                    if (invoice != null)
-                    {
-                        invoice.Status = "Cancelled";
-                        await _invoiceRepository.UpdateInvoiceAsync(invoice);
-                    }
-
-                    return Ok("Invoice cancelled successfully.");
-                }
-
-                var error = await response.Content.ReadAsStringAsync();
-                return BadRequest(error);
+                return Ok("Invoice cancelled.");
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to cancel invoice.");
         }
 
         #endregion
+
 
         #region Payment Endpoints
 
+        // Create Payment
         [HttpPost("create-payment")]
-        public async Task<IActionResult> CreatePayment([FromBody] Payment payment)
+        public async Task<IActionResult> CreatePayment([FromBody] PaymentDto paymentDto)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CreatePayments"]}";
+            var content = new StringContent(JsonConvert.SerializeObject(paymentDto), Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CreatePayments"]}";
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.PostAsJsonAsync(url, payment);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    var createdPayment = JsonConvert.DeserializeObject<Payment>(responseContent);
-
-                    await _paymentRepository.CreatePaymentAsync(createdPayment);
-                    return Ok(createdPayment);
-                }
-
-                var error = await response.Content.ReadAsStringAsync();
-                return BadRequest(error);
+                return Ok(await response.Content.ReadAsStringAsync());
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to create payment.");
         }
 
+        // Get Payment Status
         [HttpGet("payment-status/{referenceId}")]
         public async Task<IActionResult> GetPaymentStatus(string referenceId)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:GetPaymentStatus"].Replace("{x-referenceId}", referenceId)}";
+            var response = await _httpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:GetPaymentStatus"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "x-referenceId", referenceId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var status = await response.Content.ReadAsStringAsync();
-                    return Ok(status);
-                }
-
-                return NotFound("Payment status not found.");
+                return Ok(await response.Content.ReadAsStringAsync());
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to get payment status.");
         }
 
         #endregion
 
-        #region PreApproval Endpoints
+        #region Pre-Approval Endpoints
 
-        [HttpPost("preapproval")]
-        public async Task<IActionResult> CreatePreApproval([FromBody] PreApproval preApproval)
+        // Create PreApproval
+        [HttpPost("create-preapproval")]
+        public async Task<IActionResult> CreatePreApproval([FromBody] PreApprovalDto preApprovalDto)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:PreApproval"]}";
+            var content = new StringContent(JsonConvert.SerializeObject(preApprovalDto), Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:PreApproval"]}";
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.PostAsJsonAsync(url, preApproval);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    var createdPreApproval = JsonConvert.DeserializeObject<PreApproval>(responseContent);
-
-                    await _preApprovalRepository.CreatePreApprovalAsync(createdPreApproval);
-                    return Ok(createdPreApproval);
-                }
-
-                var error = await response.Content.ReadAsStringAsync();
-                return BadRequest(error);
+                return Ok(await response.Content.ReadAsStringAsync());
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to create pre-approval.");
         }
 
+        // Get PreApproval Status
         [HttpGet("preapproval-status/{referenceId}")]
         public async Task<IActionResult> GetPreApprovalStatus(string referenceId)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:GetPreApprovalStatus"].Replace("{referenceId}", referenceId)}";
+            var response = await _httpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:GetPreApprovalStatus"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "referenceId", referenceId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var status = await response.Content.ReadAsStringAsync();
-                    return Ok(status);
-                }
-
-                return NotFound("Pre-approval status not found.");
+                return Ok(await response.Content.ReadAsStringAsync());
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to get pre-approval status.");
         }
 
-        [HttpDelete("cancel-preapproval/{preapprovalId}")]
-        public async Task<IActionResult> CancelPreApproval(string preapprovalId)
+        // Cancel PreApproval
+        [HttpDelete("cancel-preapproval/{preapprovalid}")]
+        public async Task<IActionResult> CancelPreApproval(string preapprovalid)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CancelPreApproval"].Replace("{preapprovalid}", preapprovalid)}";
+            var response = await _httpClient.DeleteAsync(url);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:CancelPreApproval"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "preapprovalid", preapprovalId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.DeleteAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    // Optionally update the pre-approval status in the repository
-                    var preApproval = await _preApprovalRepository.GetPreApprovalByReferenceIdAsync(preapprovalId);
-                    if (preApproval != null)
-                    {
-                        preApproval.Status = "Cancelled";
-                        await _preApprovalRepository.UpdatePreApprovalAsync(preApproval);
-                    }
-
-                    return Ok("Pre-approval cancelled successfully.");
-                }
-
-                var error = await response.Content.ReadAsStringAsync();
-                return BadRequest(error);
+                return Ok("Pre-approval cancelled.");
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to cancel pre-approval.");
         }
 
         #endregion
 
         #region Request to Pay Endpoints
 
+        // Request to Pay
         [HttpPost("request-to-pay")]
-        public async Task<IActionResult> RequestToPay([FromBody] RequesttoPay requestToPay)
+        public async Task<IActionResult> RequestToPay([FromBody] RequestToPayDto requestToPayDto)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:RequestToPay"]}";
+            var content = new StringContent(JsonConvert.SerializeObject(requestToPayDto), Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:RequesttoPay"]}";
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.PostAsJsonAsync(url, requestToPay);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    var createdRequest = JsonConvert.DeserializeObject<RequesttoPay>(responseContent);
-
-                    await _requestToPayRepository.CreateRequestToPayAsync(createdRequest);
-                    return Ok(createdRequest);
-                }
-
-                var error = await response.Content.ReadAsStringAsync();
-                return BadRequest(error);
+                return Ok(await response.Content.ReadAsStringAsync());
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to send request to pay.");
         }
 
+        // Get Request to Pay Status
         [HttpGet("request-to-pay-status/{referenceId}")]
         public async Task<IActionResult> GetRequestToPayStatus(string referenceId)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:GetRequestToPayStatus"].Replace("{x-referenceId}", referenceId)}";
+            var response = await _httpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:RequesttoPayTransactionStatus"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "referenceId", referenceId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var status = await response.Content.ReadAsStringAsync();
-                    return Ok(status);
-                }
-
-                return NotFound("Request to Pay status not found.");
+                return Ok(await response.Content.ReadAsStringAsync());
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to get request to pay status.");
         }
 
-        [HttpPost("request-to-pay-delivery-notification/{referenceId}")]
-        public async Task<IActionResult> RequestToPayDeliveryNotification(string referenceId, [FromBody] DeliveryNotification notification)
-        {
-            try
-            {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:RequesttoPayDeliveryNotification"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "referenceId", referenceId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.PostAsJsonAsync(url, notification);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    return Ok("Delivery notification sent successfully.");
-                }
-
-                var error = await response.Content.ReadAsStringAsync();
-                return BadRequest(error);
-            }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
+        
 
         #endregion
 
         #region Request to Withdraw Endpoints
 
-        [HttpPost("request-to-withdraw-v1")]
-        public async Task<IActionResult> RequestToWithdrawV1([FromBody] RequestToWithdraw requestToWithdraw)
+        // Request to Withdraw
+        [HttpPost("request-to-withdraw")]
+        public async Task<IActionResult> RequestToWithdraw([FromBody] RequestToWithdrawDto requestToWithdrawDto)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:RequestToWithdraw"]}";
+            var content = new StringContent(JsonConvert.SerializeObject(requestToWithdrawDto), Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:RequestToWithdraw-V1"]}";
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.PostAsJsonAsync(url, requestToWithdraw);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    var createdRequest = JsonConvert.DeserializeObject<RequestToWithdraw>(responseContent);
-
-                    await _requestToWithdrawRepository.CreateRequestToWithdrawAsync(createdRequest);
-                    return Ok(createdRequest);
-                }
-
-                var error = await response.Content.ReadAsStringAsync();
-                return BadRequest(error);
+                return Ok(await response.Content.ReadAsStringAsync());
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to send request to withdraw.");
         }
 
-        [HttpPost("request-to-withdraw-v2")]
-        public async Task<IActionResult> RequestToWithdrawV2([FromBody] RequestToWithdraw requestToWithdraw)
-        {
-            try
-            {
-                var accessToken = await GetAccessTokenAsync();
-                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:RequestToWithdraw-V2"]}";
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.PostAsJsonAsync(url, requestToWithdraw);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    var createdRequest = JsonConvert.DeserializeObject<RequestToWithdraw>(responseContent);
-
-                    await _requestToWithdrawRepository.CreateRequestToWithdrawAsync(createdRequest);
-                    return Ok(createdRequest);
-                }
-
-                var error = await response.Content.ReadAsStringAsync();
-                return BadRequest(error);
-            }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
+        // Get Request to Withdraw Status
         [HttpGet("request-to-withdraw-status/{referenceId}")]
         public async Task<IActionResult> GetRequestToWithdrawStatus(string referenceId)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:GetRequestToWithdrawStatus"].Replace("{x-referenceId}", referenceId)}";
+            var response = await _httpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:RequestToWithdrawTransactionStatus"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "referenceId", referenceId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var status = await response.Content.ReadAsStringAsync();
-                    return Ok(status);
-                }
-
-                return NotFound("Request to Withdraw status not found.");
+                return Ok(await response.Content.ReadAsStringAsync());
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to get request to withdraw status.");
         }
 
         #endregion
 
-        #region Account Balance Endpoints
+        #region Account Holder Validation Endpoints
 
-        [HttpGet("account-balance")]
-        public async Task<IActionResult> GetAccountBalance()
+        // Validate Account Holder
+        [HttpGet("validate-account-holder-status/{accountHolderId}")]
+        public async Task<IActionResult> ValidateAccountHolderStatus(string accountHolderId)
         {
-            try
+            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:ValidateAccountHolderStatus"].Replace("{accountHolderId}", accountHolderId)}";
+            var response = await _httpClient.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
             {
-                var accessToken = await GetAccessTokenAsync();
-                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:GetAccountBalance"]}";
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var balance = await response.Content.ReadAsStringAsync();
-                    return Ok(balance);
-                }
-
-                return BadRequest("Failed to retrieve account balance.");
+                return Ok(await response.Content.ReadAsStringAsync());
             }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        [HttpGet("account-balance/{currency}")]
-        public async Task<IActionResult> GetAccountBalanceInSpecificCurrency(string currency)
-        {
-            try
-            {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:GetAccountBalancelnSpecificCurrency"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "currency", currency }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var balance = await response.Content.ReadAsStringAsync();
-                    return Ok(balance);
-                }
-
-                return BadRequest("Failed to retrieve account balance for the specified currency.");
-            }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+            return BadRequest("Failed to validate account holder.");
         }
 
         #endregion
-
-        #region User Info Endpoints
-
-        [HttpGet("basic-userinfo/{accountHolderIdType}/{accountHolderId}")]
-        public async Task<IActionResult> GetBasicUserInfo(string accountHolderIdType, string accountHolderId)
-        {
-            try
-            {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:GetBasicUserinfo"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "accountHolderIdType", accountHolderIdType },
-                    { "accountHolderId", accountHolderId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var userInfo = await response.Content.ReadAsStringAsync();
-                    return Ok(userInfo);
-                }
-
-                return NotFound("User info not found.");
-            }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        [HttpGet("user-info-with-consent")]
-        public async Task<IActionResult> GetUserInfoWithConsent()
-        {
-            try
-            {
-                var accessToken = await GetAccessTokenAsync();
-                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:GetUserInfoWithConsent"]}";
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var userInfo = await response.Content.ReadAsStringAsync();
-                    return Ok(userInfo);
-                }
-
-                return BadRequest("Failed to retrieve user info with consent.");
-            }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        #endregion
-
-        #region PreApproval User Endpoints
-
-        [HttpGet("approved-preapprovals/{accountHolderIdType}/{accountHolderId}")]
-        public async Task<IActionResult> GetApprovedPreApprovals(string accountHolderIdType, string accountHolderId)
-        {
-            try
-            {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:GetApprovedPreApprovals"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "accountHolderIdType", accountHolderIdType },
-                    { "accountHolderId", accountHolderId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var preApprovals = await response.Content.ReadAsStringAsync();
-                    return Ok(preApprovals);
-                }
-
-                return BadRequest("Failed to retrieve approved pre-approvals.");
-            }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        #endregion
-
-        #region Account Holder Validation
-
-        [HttpGet("validate-account-holder/{accountHolderIdType}/{accountHolderId}")]
-        public async Task<IActionResult> ValidateAccountHolderStatus(string accountHolderIdType, string accountHolderId)
-        {
-            try
-            {
-                var accessToken = await GetAccessTokenAsync();
-                var endpoint = _config["MomoApi:Collections:ValidateAccountHolderStatus"];
-                var url = ReplaceUrlPlaceholders($"{_config["MomoApi:BaseUrl"]}{endpoint}", new Dictionary<string, string>
-                {
-                    { "accountHolderIdType", accountHolderIdType },
-                    { "accountHolderId", accountHolderId }
-                });
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var status = await response.Content.ReadAsStringAsync();
-                    return Ok(status);
-                }
-
-                return BadRequest("Failed to validate account holder status.");
-            }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        #endregion
-
-        #region OAuth2 Token Endpoints
-
-        [HttpPost("create-oauth2-token")]
-        public async Task<IActionResult> CreateOauth2Token([FromBody] Oauth2TokenRequest tokenRequest)
-        {
-            try
-            {
-                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CreateOauth2Token"]}";
-
-                var clientId = _config["MomoApi:ClientId"];
-                var clientSecret = _config["MomoApi:ClientSecret"];
-                var body = new Dictionary<string, string>
-                {
-                    { "client_id", clientId },
-                    { "client_secret", clientSecret },
-                    { "grant_type", "client_credentials" }
-                };
-
-                var requestContent = new FormUrlEncodedContent(body);
-                var response = await _httpClient.PostAsync(url, requestContent);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseContent = await response.Content.ReadAsStringAsync();
-                    var tokenResponse = JsonConvert.DeserializeObject<Oauth2TokenResponse>(responseContent);
-
-                    var newToken = new Oauth2Token
-                    {
-                        AccessToken = tokenResponse.access_token,
-                        ExpiresIn = DateTime.UtcNow.AddSeconds(tokenResponse.expires_in - 60) // Subtract 60 seconds as buffer
-                    };
-
-                    // Save the new token
-                    await _oauth2TokenRepository.SaveOauth2TokenAsync(newToken);
-
-                    return Ok(newToken);
-                }
-
-                var error = await response.Content.ReadAsStringAsync();
-                return BadRequest(error);
-            }
-            catch (Exception ex)
-            {
-                // Log exception
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-        #endregion
-
-        // Implement other endpoints similarly following the above patterns
     }
-
-    #region Supporting Classes
-
-    // These classes represent the structure of the token responses.
-    // Adjust the properties based on the actual response from Momo API.
-
-    public class AccessTokenResponse
-    {
-        public string access_token { get; set; }
-        public int expires_in { get; set; }
-        public string token_type { get; set; }
-    }
-
-    public class Oauth2TokenRequest
-    {
-        // Define properties as per Momo API requirements
-    }
-
-    public class Oauth2TokenResponse
-    {
-        public string access_token { get; set; }
-        public int expires_in { get; set; }
-        public string token_type { get; set; }
-    }
-
-    public class DeliveryNotification
-    {
-        // Define properties based on Momo API requirements
-    }
-
-    #endregion
 }

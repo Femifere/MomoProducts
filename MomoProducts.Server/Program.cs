@@ -10,6 +10,7 @@ using MomoProducts.Server.Repositories.Disbursements;
 using MomoProducts.Server.Repositories.Remittance;
 using MomoProducts.Server.Models;
 using MomoProducts.Server.Interfaces.Disbursements;
+using MomoProducts.Server.Services; // Add this line for AutoMapper
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +35,9 @@ builder.Services.AddScoped<IDepositRepository, DepositRepository>();
 builder.Services.AddScoped<IRefundRepository, RefundRepository>();
 builder.Services.AddScoped<ITransferRepository, TransferRepository>();
 builder.Services.AddScoped<ICashTransferRepository, CashTransferRepository>();
+
+// Add AutoMapper
+builder.Services.AddAutoMapper(typeof(MappingProfile));
 
 // Add controllers
 builder.Services.AddControllers();

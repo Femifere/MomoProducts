@@ -4,11 +4,12 @@
 
     public class PreApproval
     {
-        internal object Amount;
-
+        public decimal Amount { get; set; }
+        
+       
         public string ReferenceId { get; set; }
 
-        public Payer Payer { get; set; }
+        public Payer  Payer { get; set; }
 
         public string PayerCurrency { get; set; }
 

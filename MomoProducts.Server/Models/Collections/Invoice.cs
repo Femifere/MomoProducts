@@ -10,10 +10,10 @@
 
         public decimal Amount { get; set; }
 
-        public string Currency { get; set; }
+        public string  Currency { get; set; }
         public string Status { get; set; }
 
-        public int ValidityDuration { get; set; }
+        public int  ValidityDuration { get; set; }
 
         public Payer IntendedPayer { get; set; }
 

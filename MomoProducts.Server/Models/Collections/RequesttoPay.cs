@@ -1,7 +1,7 @@
-﻿namespace MomoProducts.Server.Models.Collections
-{
-    using MomoProducts.Server.Models.Common;
+﻿using MomoProducts.Server.Models.Common;
 
+namespace MomoProducts.Server.Models.Collections
+{
     public class RequesttoPay
     {
         public string ReferenceId { get; set; }

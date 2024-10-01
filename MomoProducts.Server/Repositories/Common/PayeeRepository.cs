@@ -1,21 +1,22 @@
 ﻿namespace MomoProducts.Server.Repositories.Common
 {
+    using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Common;
     using MomoProducts.Server.Models.Common;
-    using Microsoft.EntityFrameworkCore;
+    using MomoProducts.Server.Dtos.CommonDto;
 
     public class PayeeRepository : IPayeeRepository
     {
-        private readonly DbContext _context;
+        private readonly AppDbContext _context;
 
-        public PayeeRepository(DbContext context)
+        public PayeeRepository(AppDbContext context)
         {
             _context = context;
         }
 
-        public async Task<Payee> GetPayeeAsync(string partyIdType, string partyId)
+        public async Task<PayeeDto> GetPayeeAsync(string partyIdType, string partyId)
         {
-            return await _context.Set<Payee>().FirstOrDefaultAsync(p => p.PartyIdType == partyIdType && p.PartyId == partyId);
+            return await _context.Set<PayeeDto>().FirstOrDefaultAsync(p => p.PartyIdType == partyIdType && p.PartyId == partyId);
         }
     }
 
