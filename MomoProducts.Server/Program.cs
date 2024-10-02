@@ -24,7 +24,7 @@ builder.Services.AddScoped<IApiUserRepository, ApiUserRepository>();
 builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPreApprovalRepository, PreApprovalRepository>();
-builder.Services.AddScoped<IRequestToPayRepository, RequestToPayRepository>();
+builder.Services.AddScoped<IRequesttoPayRepository, RequesttoPayRepository>();
 builder.Services.AddScoped<IRequestToWithdrawRepository, RequestToWithdrawRepository>();
 builder.Services.AddScoped<IAccessTokenRepository, AccessTokenRepository>();
 builder.Services.AddScoped<IMoneyRepository, MoneyRepository>();
@@ -35,40 +35,51 @@ builder.Services.AddScoped<IDepositRepository, DepositRepository>();
 builder.Services.AddScoped<IRefundRepository, RefundRepository>();
 builder.Services.AddScoped<ITransferRepository, TransferRepository>();
 builder.Services.AddScoped<ICashTransferRepository, CashTransferRepository>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ApiUserRepository>();
+builder.Services.AddScoped<ApiKeyRepository>();
 
-// Add AutoMapper
+
+// Add AutoMapper for object mapping
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-// Add controllers
+// Add controllers to the service collection
 builder.Services.AddControllers();
 
+// Add HTTP client services
 builder.Services.AddHttpClient();
 
-// Add CORS policy to allow the React app to communicate with the backend
+// Configure CORS policy to allow the React app to communicate with the backend
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp",
         builder =>
         {
-            builder.WithOrigins("http://localhost:3000") // Adjust the origin as needed
+            builder.WithOrigins("https://localhost:5173") // Adjust the origin as needed
                    .AllowAnyHeader()
                    .AllowAnyMethod();
         });
 });
 
-// Add Swagger
+// Add Swagger for API documentation
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+// Example in Program.cs
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
+
 
 // Build the application
 var app = builder.Build();
 
+// Configure middleware
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage();
+    app.UseDeveloperExceptionPage(); // Enable developer exception page in development
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
@@ -76,14 +87,13 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+app.UseHttpsRedirection(); // Redirect HTTP requests to HTTPS
+
+app.UseCors("AllowReactApp"); // Use the configured CORS policy
 app.UseRouting();
-
-app.UseCors("AllowReactApp");
-
 app.UseAuthorization();
+app.MapControllers(); // Map controller endpoints
 
-app.MapControllers();
-app.MapFallbackToFile("/index.html");
+app.MapFallbackToFile("/index.html"); // Serve index.html for fallback routing
 
-app.Run();
+app.Run(); // Run the application

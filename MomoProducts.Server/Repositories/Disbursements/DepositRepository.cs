@@ -3,8 +3,7 @@
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Disbursements;
     using MomoProducts.Server.Models.Disbursements;
-    using MomoProducts.Server.Dtos.DisbursementsDto;
-
+    
     public class DepositRepository : IDepositRepository
     {
         private readonly AppDbContext _context;
@@ -14,19 +13,19 @@
             _context = context;
         }
 
-        public async Task<DepositDto> GetDepositByReferenceIdAsync(string referenceId)
+        public async Task<Deposit> GetDepositByReferenceIdAsync(string referenceId)
         {
-            return await _context.Set<DepositDto>().FirstOrDefaultAsync(d => d.ReferenceId == referenceId);
+            return await _context.Set<Deposit>().FirstOrDefaultAsync(d => d.ReferenceId == referenceId);
         }
 
-        public async Task<IEnumerable<DepositDto>> GetAllDepositsAsync()
+        public async Task<IEnumerable<Deposit>> GetAllDepositsAsync()
         {
-            return await _context.Set<DepositDto>().ToListAsync();
+            return await _context.Set<Deposit>().ToListAsync();
         }
 
-        public async Task CreateDepositAsync(DepositDto depositDto)
+        public async Task CreateDepositAsync(Deposit deposit)
         {
-            _context.Set<DepositDto>().Add(depositDto);
+            _context.Set<Deposit>().Add(deposit);
             await _context.SaveChangesAsync();
         }
     }

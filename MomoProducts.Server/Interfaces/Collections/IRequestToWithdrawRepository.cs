@@ -1,12 +1,12 @@
 ﻿using MomoProducts.Server.Models.Collections;
-using MomoProducts.Server.Dtos.CollectionsDto;
+using MomoProducts.Server.s.Collections;
 
 namespace MomoProducts.Server.Interfaces.Collections
 {
     public interface IRequestToWithdrawRepository
     {
-        Task<RequestToWithdrawDto> GetRequestToWithdrawByReferenceIdAsync(string referenceId);
-        Task<IEnumerable<RequestToWithdrawDto>> GetAllRequestsToWithdrawAsync();
-        Task CreateRequestToWithdrawAsync(RequestToWithdrawDto requestToWithdrawDto);
+        Task<RequestToWithdraw> GetRequestToWithdrawByReferenceIdAsync(string referenceId);
+        Task<IEnumerable<RequestToWithdraw>> GetAllRequestsToWithdrawAsync();
+        Task CreateRequestToWithdrawAsync(RequestToWithdraw requestToWithdraw);
     }
 }

@@ -3,7 +3,7 @@
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Common;
     using MomoProducts.Server.Models.Common;
-    using MomoProducts.Server.Dtos.CommonDto;
+
 
     public class AccessTokenRepository : IAccessTokenRepository
     {
@@ -14,23 +14,23 @@
             _context = context;
         }
 
-        public async Task<AccessTokenDto> GetAccessTokenAsync()
+        public async Task<AccessToken> GetAccessTokenAsync()
         {
-            return await _context.Set<AccessTokenDto>().FirstOrDefaultAsync();
+            return await _context.Set<AccessToken>().FirstOrDefaultAsync();
         }
 
-        public async Task SaveAccessTokenAsync(AccessTokenDto tokenDto)
+        public async Task SaveAccessTokenAsync(AccessToken token)
         {
             var existingToken = await GetAccessTokenAsync();
             if (existingToken != null)
             {
-                existingToken.accessToken = tokenDto.accessToken;
-                existingToken.ExpiresIn = tokenDto.ExpiresIn;
-                _context.Set<AccessTokenDto>().Update(existingToken);
+                existingToken.accessToken = token.accessToken;
+                existingToken.ExpiresIn = token.ExpiresIn;
+                _context.Set<AccessToken>().Update(existingToken);
             }
             else
             {
-                await _context.Set<AccessTokenDto>().AddAsync(tokenDto);
+                await _context.Set<AccessToken>().AddAsync(token);
             }
             await _context.SaveChangesAsync();
         }

@@ -3,8 +3,7 @@
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Common;
     using MomoProducts.Server.Models.Common;
-    using MomoProducts.Server.Dtos.CommonDto;
-
+    
     public class TransferRepository : ITransferRepository
     {
         private readonly AppDbContext _context;
@@ -14,19 +13,19 @@
             _context = context;
         }
 
-        public async Task<TransferDto> GetTransferByReferenceIdAsync(string referenceId)
+        public async Task<Transfer> GetTransferByReferenceIdAsync(string referenceId)
         {
-            return await _context.Set<TransferDto>().FirstOrDefaultAsync(t => t.ReferenceId == referenceId);
+            return await _context.Set<Transfer>().FirstOrDefaultAsync(t => t.ReferenceId == referenceId);
         }
 
-        public async Task<IEnumerable<TransferDto>> GetAllTransfersAsync()
+        public async Task<IEnumerable<Transfer>> GetAllTransfersAsync()
         {
-            return await _context.Set<TransferDto>().ToListAsync();
+            return await _context.Set<Transfer>().ToListAsync();
         }
 
-        public async Task CreateTransferAsync(TransferDto transferDto)
+        public async Task CreateTransferAsync(Transfer transfer)
         {
-            _context.Set<TransferDto>().Add(transferDto);
+            _context.Set<Transfer>().Add(transfer);
             await _context.SaveChangesAsync();
         }
     }

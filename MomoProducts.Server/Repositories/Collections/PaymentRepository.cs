@@ -3,7 +3,7 @@
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Collections;
     using MomoProducts.Server.Models.Collections;
-    using MomoProducts.Server.Dtos.CollectionsDto;
+   
 
     public class PaymentRepository : IPaymentRepository
     {
@@ -14,19 +14,19 @@
             _context = context;
         }
 
-        public async Task<PaymentDto> GetPaymentByReferenceIdAsync(string referenceId)
+        public async Task<Payment> GetPaymentByReferenceIdAsync(string referenceId)
         {
-            return await _context.Set<PaymentDto>().FirstOrDefaultAsync(p => p.ReferenceId == referenceId);
+            return await _context.Set<Payment>().FirstOrDefaultAsync(p => p.ReferenceId == referenceId);
         }
 
-        public async Task<IEnumerable<PaymentDto>> GetAllPaymentsAsync()
+        public async Task<IEnumerable<Payment>> GetAllPaymentsAsync()
         {
-            return await _context.Set<PaymentDto>().ToListAsync();
+            return await _context.Set<Payment>().ToListAsync();
         }
 
-        public async Task CreatePaymentAsync(PaymentDto paymentDto)
+        public async Task CreatePaymentAsync(Payment payment)
         {
-            _context.Set<PaymentDto>().Add(paymentDto);
+            _context.Set<Payment>().Add(payment);
             await _context.SaveChangesAsync();
         }
     }

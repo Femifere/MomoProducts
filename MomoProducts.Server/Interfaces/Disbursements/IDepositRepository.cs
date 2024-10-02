@@ -1,12 +1,12 @@
 ﻿using MomoProducts.Server.Models.Disbursements;
-using MomoProducts.Server.Dtos.DisbursementsDto;
+using MomoProducts.Server.s.Disbursements;
 
 namespace MomoProducts.Server.Interfaces.Disbursements
 {
     public interface IDepositRepository
     {
-        Task<DepositDto> GetDepositByReferenceIdAsync(string referenceId);
-        Task<IEnumerable<DepositDto>> GetAllDepositsAsync();
-        Task CreateDepositAsync(DepositDto depositDto);
+        Task<Deposit> GetDepositByReferenceIdAsync(string referenceId);
+        Task<IEnumerable<Deposit>> GetAllDepositsAsync();
+        Task CreateDepositAsync(Deposit deposit);
     }
 }

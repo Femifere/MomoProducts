@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MomoProducts.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241001224054_InitialMigration")]
+    [Migration("20241002021604_InitialMigration")]
     partial class InitialMigration
     {
         /// <inheritdoc />

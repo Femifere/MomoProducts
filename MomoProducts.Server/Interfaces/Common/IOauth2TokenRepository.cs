@@ -1,11 +1,11 @@
 ﻿using MomoProducts.Server.Models.Common;
-using MomoProducts.Server.Dtos.CommonDto;
+using MomoProducts.Server.s.Common;
 namespace MomoProducts.Server.Interfaces.Common
 {
     public interface IOauth2TokenRepository
     {
-        Task<Oauth2TokenDto> GetOauth2TokenAsync();
-        Task SaveOauth2TokenAsync(Oauth2TokenDto tokenDto);
+        Task<Oauth2Token> GetOauth2TokenAsync();
+        Task SaveOauth2TokenAsync(Oauth2Token token);
     }
 }
 

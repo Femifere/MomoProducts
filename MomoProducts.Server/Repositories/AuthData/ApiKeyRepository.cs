@@ -3,7 +3,6 @@
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.AuthData;
     using MomoProducts.Server.Models.AuthData;
-    using MomoProducts.Server.Dtos.AuthDataDto;
     public class ApiKeyRepository : IApiKeyRepository
     {
         private readonly AppDbContext _context;
@@ -13,29 +12,29 @@
             _context = context;
         }
 
-        public async Task<ApiKeyDto> GetApiKeyAsync()
+        public async Task<ApiKey> GetApiKeyAsync()
         {
-            return await _context.Set<ApiKeyDto>().FirstOrDefaultAsync();
+            return await _context.Set<ApiKey>().FirstOrDefaultAsync();
         }
 
-        public async Task<ApiKeyDto> SaveApiKeyAsync(ApiKeyDto apiKeyDto)
+        public async Task<ApiKey> SaveApiKeyAsync(ApiKey apiKey)
         {
-            await _context.Set<ApiKeyDto>().AddAsync(apiKeyDto);
+            await _context.Set<ApiKey>().AddAsync(apiKey);
             await _context.SaveChangesAsync();
-            return apiKeyDto;
+            return apiKey;
         }
 
-        public async Task<ApiKeyDto> UpdateApiKeyAsync(ApiKeyDto apiKeyDto)
+        public async Task<ApiKey> UpdateApiKeyAsync(ApiKey apiKey)
         {
             var existingApiKey = await GetApiKeyAsync();
 
             if (existingApiKey != null)
             {
-                _context.Entry(existingApiKey).CurrentValues.SetValues(apiKeyDto);
+                _context.Entry(existingApiKey).CurrentValues.SetValues(apiKey);
                 await _context.SaveChangesAsync();
             }
 
-            return apiKeyDto;
+            return apiKey;
         }
     }
 }

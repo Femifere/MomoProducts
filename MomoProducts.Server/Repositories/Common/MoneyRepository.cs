@@ -3,7 +3,7 @@
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Common;
     using MomoProducts.Server.Models.Common;
-    using MomoProducts.Server.Dtos.CommonDto;
+
 
     public class MoneyRepository : IMoneyRepository
     {
@@ -14,9 +14,9 @@
             _context = context;
         }
 
-        public async Task<MoneyDto> GetMoneyAsync()
+        public async Task<Money> GetMoneyAsync()
         {
-            return await _context.Set<MoneyDto>().FirstOrDefaultAsync();
+            return await _context.Set<Money>().FirstOrDefaultAsync();
         }
     }
 

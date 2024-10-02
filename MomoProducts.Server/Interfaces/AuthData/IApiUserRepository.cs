@@ -1,11 +1,11 @@
 ﻿using MomoProducts.Server.Models.AuthData;
-using MomoProducts.Server.Dtos.AuthDataDto;
+using MomoProducts.Server.s.AuthData;
 
 namespace MomoProducts.Server.Interfaces.AuthData
 {
     public interface IApiUserRepository
     {
-        Task<ApiUserDto> GetApiUserAsync(string referenceId);
-        Task<ApiUserDto> SaveApiUserAsync(ApiUserDto user);
+        Task<ApiUser> GetApiUserAsync(string referenceId);
+        Task<ApiUser> SaveApiUserAsync(ApiUser user);
     }
 }

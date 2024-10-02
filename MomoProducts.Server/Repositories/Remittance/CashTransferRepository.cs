@@ -4,8 +4,7 @@
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Remittance;
     using MomoProducts.Server.Models.Remittance;
-    using MomoProducts.Server.Dtos.RemittanceDto;
-
+    
     public class CashTransferRepository : ICashTransferRepository
     {
         private readonly AppDbContext _context;
@@ -15,19 +14,19 @@
             _context = context;
         }
 
-        public async Task<CashTransferDto> GetCashTransferByReferenceIdAsync(string referenceId)
+        public async Task<CashTransfer> GetCashTransferByReferenceIdAsync(string referenceId)
         {
-            return await _context.Set<CashTransferDto>().FirstOrDefaultAsync(ct => ct.ReferenceId == referenceId);
+            return await _context.Set<CashTransfer>().FirstOrDefaultAsync(ct => ct.ReferenceId == referenceId);
         }
 
-        public async Task<IEnumerable<CashTransferDto>> GetAllCashTransfersAsync()
+        public async Task<IEnumerable<CashTransfer>> GetAllCashTransfersAsync()
         {
-            return await _context.Set<CashTransferDto>().ToListAsync();
+            return await _context.Set<CashTransfer>().ToListAsync();
         }
 
-        public async Task CreateCashTransferAsync(CashTransferDto cashTransfer)
+        public async Task CreateCashTransferAsync(CashTransfer cashTransfer)
         {
-            _context.Set<CashTransferDto>().Add(cashTransfer);
+            _context.Set<CashTransfer>().Add(cashTransfer);
             await _context.SaveChangesAsync();
         }
     }

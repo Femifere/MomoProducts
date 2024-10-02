@@ -3,7 +3,7 @@
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Collections;
     using MomoProducts.Server.Models.Collections;
-    using MomoProducts.Server.Dtos.CollectionsDto;
+ 
 
     public class RequestToWithdrawRepository : IRequestToWithdrawRepository
     {
@@ -14,19 +14,19 @@
             _context = context;
         }
 
-        public async Task<RequestToWithdrawDto> GetRequestToWithdrawByReferenceIdAsync(string referenceId)
+        public async Task<RequestToWithdraw> GetRequestToWithdrawByReferenceIdAsync(string referenceId)
         {
-            return await _context.Set<RequestToWithdrawDto>().FirstOrDefaultAsync(rtw => rtw.ReferenceId == referenceId);
+            return await _context.Set<RequestToWithdraw>().FirstOrDefaultAsync(rtw => rtw.ReferenceId == referenceId);
         }
 
-        public async Task<IEnumerable<RequestToWithdrawDto>> GetAllRequestsToWithdrawAsync()
+        public async Task<IEnumerable<RequestToWithdraw>> GetAllRequestsToWithdrawAsync()
         {
-            return await _context.Set<RequestToWithdrawDto>().ToListAsync();
+            return await _context.Set<RequestToWithdraw>().ToListAsync();
         }
 
-        public async Task CreateRequestToWithdrawAsync(RequestToWithdrawDto requestToWithdrawDto)
+        public async Task CreateRequestToWithdrawAsync(RequestToWithdraw requestToWithdraw)
         {
-            _context.Set<RequestToWithdrawDto>().Add(requestToWithdrawDto);
+            _context.Set<RequestToWithdraw>().Add(requestToWithdraw);
             await _context.SaveChangesAsync();
         }
     }

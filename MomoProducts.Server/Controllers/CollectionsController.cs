@@ -10,7 +10,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using MomoProducts.Server.Interfaces.Common;
-using MomoProducts.Server.Dtos.CollectionsDto;
+
 
 namespace MomoProducts.Server.Controllers
 {
@@ -119,13 +119,13 @@ namespace MomoProducts.Server.Controllers
 
         // Create Invoice
         [HttpPost("create-invoice")]
-        public async Task<IActionResult> CreateInvoice([FromBody] InvoiceDto invoiceDto)
+        public async Task<IActionResult> CreateInvoice([FromBody] Invoice invoice)
         {
             var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
             var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CreateInvoice"]}";
-            var content = new StringContent(JsonConvert.SerializeObject(invoiceDto), Encoding.UTF8, "application/json");
+            var content = new StringContent(JsonConvert.SerializeObject(invoice), Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync(url, content);
 
             if (response.IsSuccessStatusCode)
@@ -159,13 +159,13 @@ namespace MomoProducts.Server.Controllers
 
         // Create Payment
         [HttpPost("create-payment")]
-        public async Task<IActionResult> CreatePayment([FromBody] PaymentDto paymentDto)
+        public async Task<IActionResult> CreatePayment([FromBody] Payment payment)
         {
             var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
             var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:CreatePayments"]}";
-            var content = new StringContent(JsonConvert.SerializeObject(paymentDto), Encoding.UTF8, "application/json");
+            var content = new StringContent(JsonConvert.SerializeObject(payment), Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync(url, content);
 
             if (response.IsSuccessStatusCode)
@@ -198,13 +198,13 @@ namespace MomoProducts.Server.Controllers
 
         // Create PreApproval
         [HttpPost("create-preapproval")]
-        public async Task<IActionResult> CreatePreApproval([FromBody] PreApprovalDto preApprovalDto)
+        public async Task<IActionResult> CreatePreApproval([FromBody] PreApproval preApproval)
         {
             var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
             var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:PreApproval"]}";
-            var content = new StringContent(JsonConvert.SerializeObject(preApprovalDto), Encoding.UTF8, "application/json");
+            var content = new StringContent(JsonConvert.SerializeObject(preApproval), Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync(url, content);
 
             if (response.IsSuccessStatusCode)
@@ -254,13 +254,13 @@ namespace MomoProducts.Server.Controllers
 
         // Request to Pay
         [HttpPost("request-to-pay")]
-        public async Task<IActionResult> RequestToPay([FromBody] RequestToPayDto requestToPayDto)
+        public async Task<IActionResult> RequestToPay([FromBody] RequestToPay requestToPay)
         {
             var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
             var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:RequestToPay"]}";
-            var content = new StringContent(JsonConvert.SerializeObject(requestToPayDto), Encoding.UTF8, "application/json");
+            var content = new StringContent(JsonConvert.SerializeObject(requestToPay), Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync(url, content);
 
             if (response.IsSuccessStatusCode)
@@ -295,13 +295,13 @@ namespace MomoProducts.Server.Controllers
 
         // Request to Withdraw
         [HttpPost("request-to-withdraw")]
-        public async Task<IActionResult> RequestToWithdraw([FromBody] RequestToWithdrawDto requestToWithdrawDto)
+        public async Task<IActionResult> RequestToWithdraw([FromBody] RequestToWithdraw requestToWithdraw)
         {
             var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
 
             var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:RequestToWithdraw"]}";
-            var content = new StringContent(JsonConvert.SerializeObject(requestToWithdrawDto), Encoding.UTF8, "application/json");
+            var content = new StringContent(JsonConvert.SerializeObject(requestToWithdraw), Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync(url, content);
 
             if (response.IsSuccessStatusCode)

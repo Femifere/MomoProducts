@@ -3,12 +3,12 @@ using MomoProducts.Server.Interfaces.Disbursements;
 using MomoProducts.Server.Interfaces.Common;
 using MomoProducts.Server.Models.Disbursements;
 using MomoProducts.Server.Models.Common;
-using MomoProducts.Server.Dtos;
+using MomoProducts.Server.s;
 using System.Threading.Tasks;
 using MomoProducts.Server.Services;
 using System.Net.Http;
-using MomoProducts.Server.Dtos.CommonDto;
-using MomoProducts.Server.Dtos.DisbursementsDto;
+using MomoProducts.Server.s.Common;
+using MomoProducts.Server.s.Disbursements;
 
 namespace MomoProducts.Server.Controllers
 {
@@ -107,9 +107,9 @@ namespace MomoProducts.Server.Controllers
 
         // Deposit Endpoints
         [HttpPost("v1_0/deposit")]
-        public async Task<IActionResult> CreateDepositV1([FromBody] DepositDto depositDto, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
+        public async Task<IActionResult> CreateDepositV1([FromBody] Deposit deposit, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
         {
-            if (depositDto == null)
+            if (deposit == null)
                 return BadRequest("Deposit details are required.");
 
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
@@ -121,7 +121,7 @@ namespace MomoProducts.Server.Controllers
             }
 
             var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:v1_0:deposit"]}";
-            var response = await _httpClient.PostAsJsonAsync(url, depositDto);
+            var response = await _httpClient.PostAsJsonAsync(url, deposit);
 
             if (response.IsSuccessStatusCode)
             {
@@ -131,9 +131,9 @@ namespace MomoProducts.Server.Controllers
         }
 
         [HttpPost("v2_0/deposit")]
-        public async Task<IActionResult> CreateDepositV2([FromBody] DepositDto depositDto, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
+        public async Task<IActionResult> CreateDepositV2([FromBody] Deposit deposit, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
         {
-            return await CreateDepositV1(depositDto, xReferenceId, xTargetEnvironment, xCallbackUrl); // Reuse the same logic
+            return await CreateDepositV1(deposit, xReferenceId, xTargetEnvironment, xCallbackUrl); // Reuse the same logic
         }
 
         [HttpGet("account/balance")]
@@ -202,9 +202,9 @@ namespace MomoProducts.Server.Controllers
 
         // Refund Endpoints
         [HttpPost("v1_0/refund")]
-        public async Task<IActionResult> CreateRefundV1([FromBody] RefundDto refundDto, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
+        public async Task<IActionResult> CreateRefundV1([FromBody] Refund refund, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
         {
-            if (refundDto == null)
+            if (refund == null)
                 return BadRequest("Refund details are required.");
 
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
@@ -216,7 +216,7 @@ namespace MomoProducts.Server.Controllers
             }
 
             var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:v1_0:refund"]}";
-            var response = await _httpClient.PostAsJsonAsync(url, refundDto);
+            var response = await _httpClient.PostAsJsonAsync(url, refund);
 
             if (response.IsSuccessStatusCode)
             {
@@ -226,9 +226,9 @@ namespace MomoProducts.Server.Controllers
         }
 
         [HttpPost("v2_0/refund")]
-        public async Task<IActionResult> CreateRefundV2([FromBody] RefundDto refundDto, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
+        public async Task<IActionResult> CreateRefundV2([FromBody] Refund refund, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
         {
-            return await CreateRefundV1(refundDto, xReferenceId, xTargetEnvironment, xCallbackUrl); // Reuse the same logic
+            return await CreateRefundV1(refund, xReferenceId, xTargetEnvironment, xCallbackUrl); // Reuse the same logic
         }
 
         [HttpGet("refund/{referenceId}")]
@@ -249,9 +249,9 @@ namespace MomoProducts.Server.Controllers
 
         // Transfer Endpoints
         [HttpPost("v1_0/transfer")]
-        public async Task<IActionResult> CreateTransferV1([FromBody] TransferDto transferDto, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
+        public async Task<IActionResult> CreateTransferV1([FromBody] Transfer transfer, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
         {
-            if (transferDto == null)
+            if (transfer == null)
                 return BadRequest("Transfer details are required.");
 
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
@@ -263,7 +263,7 @@ namespace MomoProducts.Server.Controllers
             }
 
             var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:v1_0:transfer"]}";
-            var response = await _httpClient.PostAsJsonAsync(url, transferDto);
+            var response = await _httpClient.PostAsJsonAsync(url, transfer);
 
             if (response.IsSuccessStatusCode)
             {
@@ -273,9 +273,9 @@ namespace MomoProducts.Server.Controllers
         }
 
         [HttpPost("v2_0/transfer")]
-        public async Task<IActionResult> CreateTransferV2([FromBody] TransferDto transferDto, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
+        public async Task<IActionResult> CreateTransferV2([FromBody] Transfer transfer, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
         {
-            return await CreateTransferV1(transferDto, xReferenceId, xTargetEnvironment, xCallbackUrl); // Reuse the same logic
+            return await CreateTransferV1(transfer, xReferenceId, xTargetEnvironment, xCallbackUrl); // Reuse the same logic
         }
 
         [HttpGet("transfer/{referenceId}")]

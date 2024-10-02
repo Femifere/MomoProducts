@@ -1,14 +1,14 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MomoProducts.Server.Interfaces.Remittance;
 using MomoProducts.Server.Interfaces.Common;
-using MomoProducts.Server.Dtos.RemittanceDto; 
-using MomoProducts.Server.Dtos.CommonDto;      
+using MomoProducts.Server.s.Remittance; 
+using MomoProducts.Server.s.Common;      
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using MomoProducts.Server.Services;
-using MomoProducts.Server.Dtos.CommonDto;
-using MomoProducts.Server.Dtos.RemittanceDto;
+using MomoProducts.Server.s.Common;
+using MomoProducts.Server.s.Remittance;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -60,20 +60,20 @@ public class RemittanceController : ControllerBase
 
     // Cash Transfer
     [HttpPost("cash-transfer")]
-    public async Task<IActionResult> CreateCashTransfer([FromBody] CashTransferDto cashTransferDto)
+    public async Task<IActionResult> CreateCashTransfer([FromBody] CashTransfer cashTransfer)
     {
         var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:CashTransfer"]}";
 
         // Set required headers
         _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
         _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", "sandbox"); // Adjust if needed
-        _httpClient.DefaultRequestHeaders.Add("X-Reference-Id", cashTransferDto.ExternalId); // Assuming ExternalId is passed in CashTransferDto
+        _httpClient.DefaultRequestHeaders.Add("X-Reference-Id", cashTransfer.ExternalId); // Assuming ExternalId is passed in CashTransfer
 
-        var response = await _httpClient.PostAsJsonAsync(url, cashTransferDto);
+        var response = await _httpClient.PostAsJsonAsync(url, cashTransfer);
 
         if (response.IsSuccessStatusCode)
         {
-            await _cashTransferRepository.CreateCashTransferAsync(cashTransferDto);
+            await _cashTransferRepository.CreateCashTransferAsync(cashTransfer);
             return Ok("Cash transfer created successfully.");
         }
         return BadRequest("Failed to create cash transfer.");
@@ -195,7 +195,7 @@ public class RemittanceController : ControllerBase
 
     // Transfer
     [HttpPost("transfer")]
-    public async Task<IActionResult> CreateTransfer([FromBody] TransferDto transferDto)
+    public async Task<IActionResult> CreateTransfer([FromBody] Transfer transfer)
     {
         var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:Transfer"]}";
 
@@ -203,11 +203,11 @@ public class RemittanceController : ControllerBase
         _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
         _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", "sandbox"); // Adjust if needed
 
-        var response = await _httpClient.PostAsJsonAsync(url, transferDto);
+        var response = await _httpClient.PostAsJsonAsync(url, transfer);
 
         if (response.IsSuccessStatusCode)
         {
-            await _transferRepository.CreateTransferAsync(transferDto);
+            await _transferRepository.CreateTransferAsync(transfer);
             return Ok("Transfer created successfully.");
         }
         return BadRequest("Failed to create transfer.");

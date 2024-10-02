@@ -3,7 +3,7 @@
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.AuthData;
     using MomoProducts.Server.Models.AuthData;
-    using MomoProducts.Server.Dtos.AuthDataDto;
+    
 
     public class ApiUserRepository : IApiUserRepository
     {
@@ -14,26 +14,26 @@
             _context = context;
         }
 
-        public async Task<ApiUserDto> GetApiUserAsync(string referenceId)
+        public async Task<ApiUser> GetApiUserAsync(string referenceId)
         {
-            return await _context.Set<ApiUserDto>().FirstOrDefaultAsync(u => u.ReferenceId == referenceId);
+            return await _context.Set<ApiUser>().FirstOrDefaultAsync(u => u.ReferenceId == referenceId);
         }
 
-        public async Task<ApiUserDto> SaveApiUserAsync(ApiUserDto userDto)
+        public async Task<ApiUser> SaveApiUserAsync(ApiUser user)
         {
-            var existingUser = await GetApiUserAsync(userDto.ReferenceId);
+            var existingUser = await GetApiUserAsync(user.ReferenceId);
 
             if (existingUser == null)
             {
-                await _context.Set<ApiUserDto>().AddAsync(userDto);
+                await _context.Set<ApiUser>().AddAsync(user);
             }
             else
             {
-                _context.Entry(existingUser).CurrentValues.SetValues(userDto);
+                _context.Entry(existingUser).CurrentValues.SetValues(user);
             }
 
             await _context.SaveChangesAsync();
-            return userDto;
+            return user;
         }
     }
 }
