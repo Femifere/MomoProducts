@@ -13,9 +13,9 @@
             _context = context;
         }
 
-        public async Task<Deposit> GetDepositByReferenceIdAsync(string referenceId)
+        public async Task<Deposit> GetDepositByExternalIdAsync(string externalId)
         {
-            return await _context.Set<Deposit>().FirstOrDefaultAsync(d => d.ReferenceId == referenceId);
+            return await _context.Set<Deposit>().FirstOrDefaultAsync(d => d.ExternalId == externalId);
         }
 
         public async Task<IEnumerable<Deposit>> GetAllDepositsAsync()

@@ -1,14 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MomoProducts.Server.Interfaces.Remittance;
+using MomoProducts.Server.Dtos;
 using MomoProducts.Server.Interfaces.Common;
-using MomoProducts.Server.s.Remittance; 
-using MomoProducts.Server.s.Common;      
-using System.Net.Http;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
+using MomoProducts.Server.Interfaces.Remittance;
+using MomoProducts.Server.Models.Common;
 using MomoProducts.Server.Services;
-using MomoProducts.Server.s.Common;
-using MomoProducts.Server.s.Remittance;
+using Newtonsoft.Json; // Add this for JSON deserialization
+using System.Net.Http.Headers;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -16,230 +13,133 @@ public class RemittanceController : ControllerBase
 {
     private readonly ICashTransferRepository _cashTransferRepository;
     private readonly ITransferRepository _transferRepository;
+    private readonly IAccessTokenRepository _accessTokenRepository;
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _config;
     private readonly AuthService _authService;
+    private readonly string _subscriptionKey;
 
     public RemittanceController(
         ICashTransferRepository cashTransferRepository,
         ITransferRepository transferRepository,
+        IAccessTokenRepository accessTokenRepository,
         HttpClient httpClient,
         IConfiguration config,
         AuthService authService)
     {
         _cashTransferRepository = cashTransferRepository;
         _transferRepository = transferRepository;
+        _accessTokenRepository = accessTokenRepository;
         _httpClient = httpClient;
         _config = config;
         _authService = authService;
+        _subscriptionKey = _config["MomoApi:SubscriptionKey:dummyRemittance"]; // Add subscription key initialization
     }
 
-    // BC Authorize
-    [HttpPost("bc-authorize")]
-    public async Task<IActionResult> AuthorizeBusinessClient([FromBody] object callbackUrl = null) // Adjust the parameter as per your needs
+    // DTO for Access Token Response
+    public class AccessTokenResponse
     {
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:bc-authorize"]}";
-
-        // Get the Basic authentication header
-        var encodedCredentials = await _authService.GetEncodedCredentialsAsync();
-        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", encodedCredentials);
-        _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", "sandbox"); // Adjust if needed
-        if (callbackUrl != null)
-        {
-            _httpClient.DefaultRequestHeaders.Add("X-Callback-Url", callbackUrl.ToString());
-        }
-
-        var response = await _httpClient.PostAsync(url, null); // Adjust if body is required
-
-        if (response.IsSuccessStatusCode)
-        {
-            return Ok(await response.Content.ReadAsStringAsync());
-        }
-        return BadRequest("Authorization failed.");
-    }
-
-    // Cash Transfer
-    [HttpPost("cash-transfer")]
-    public async Task<IActionResult> CreateCashTransfer([FromBody] CashTransfer cashTransfer)
-    {
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:CashTransfer"]}";
-
-        // Set required headers
-        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-        _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", "sandbox"); // Adjust if needed
-        _httpClient.DefaultRequestHeaders.Add("X-Reference-Id", cashTransfer.ExternalId); // Assuming ExternalId is passed in CashTransfer
-
-        var response = await _httpClient.PostAsJsonAsync(url, cashTransfer);
-
-        if (response.IsSuccessStatusCode)
-        {
-            await _cashTransferRepository.CreateCashTransferAsync(cashTransfer);
-            return Ok("Cash transfer created successfully.");
-        }
-        return BadRequest("Failed to create cash transfer.");
-    }
-
-    // Get Cash Transfer Status
-    [HttpGet("cash-transfer-status/{referenceId}")]
-    public async Task<IActionResult> GetCashTransferStatus(string referenceId)
-    {
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:GetCashTransferStatus"].Replace("{referenceId}", referenceId)}";
-        var response = await _httpClient.GetAsync(url);
-
-        if (response.IsSuccessStatusCode)
-        {
-            var status = await response.Content.ReadAsStringAsync();
-            return Ok(status);
-        }
-        return NotFound("Cash transfer status not found.");
+        public string access_token { get; set; }
+        public string token_type { get; set; }
+        public int expires_in { get; set; }
     }
 
     // Create Access Token
     [HttpPost("create-access-token")]
-    public async Task<IActionResult> CreateAccessToken()
+    public async Task<AccessTokenResponse> CreateAccessToken()
     {
-        // Get the encoded credentials
-        var encodedCredentials = await _authService.GetEncodedCredentialsAsync();
-        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", encodedCredentials);
-
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:CreateAccessToken"]}";
-        var response = await _httpClient.PostAsync(url, null); // Adjust if the API requires any specific body content
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            var token = await response.Content.ReadAsStringAsync();
-            return Ok(token);
+            // Fetch Base64 encoded credentials
+            var encodedCredentials = await _authService.GetEncodedCredentialsAsync();
+
+            // Set up the HttpClient
+            using var client = new HttpClient();
+
+            // Request headers
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", encodedCredentials);
+            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _config["MomoApi:SubscriptionKey:dummyRemittance"]);
+
+            // Prepare the URL for the request
+            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:CreateAccessToken"]}";
+
+            // Make the POST request
+            var response = await client.PostAsync(url, null);
+
+            // Handle the response
+            if (response.IsSuccessStatusCode)
+            {
+                var tokenJson = await response.Content.ReadAsStringAsync();
+                return JsonConvert.DeserializeObject<AccessTokenResponse>(tokenJson); // Deserialize the token
+            }
+
+            // Log error response
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Failed to create access token. Response: {errorContent}");
         }
-        return BadRequest("Failed to create access token.");
-    }
-
-    // Create OAuth2 Token
-    [HttpPost("create-oauth2-token")]
-    public async Task<IActionResult> CreateOauth2Token()
-    {
-        // Get the encoded credentials
-        var encodedCredentials = await _authService.GetEncodedCredentialsAsync();
-        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", encodedCredentials);
-
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:CreateOauth2Token"]}";
-
-        var response = await _httpClient.PostAsync(url, null);
-
-        if (response.IsSuccessStatusCode)
+        catch (Exception ex)
         {
-            var token = await response.Content.ReadAsStringAsync();
-            return Ok(token);
+            // Log the exception message and stack trace
+            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+            }
+            throw; // Rethrow exception for the calling method to handle
         }
-        return BadRequest("Failed to create OAuth2 token.");
     }
-
-    // Get Account Balance
-    [HttpGet("account-balance")]
-    public async Task<IActionResult> GetAccountBalance()
-    {
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:GetAccountBalance"]}";
-        var response = await _httpClient.GetAsync(url);
-
-        if (response.IsSuccessStatusCode)
-        {
-            var balance = await response.Content.ReadAsStringAsync();
-            return Ok(balance);
-        }
-        return NotFound("Account balance not found.");
-    }
-
-    // Get Account Balance in Specific Currency
-    [HttpGet("account-balance/{currency}")]
-    public async Task<IActionResult> GetAccountBalanceInSpecificCurrency(string currency)
-    {
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:GetAccountBalanceInSpecificCurrency"].Replace("{Currency}", currency)}";
-        var response = await _httpClient.GetAsync(url);
-
-        if (response.IsSuccessStatusCode)
-        {
-            var balance = await response.Content.ReadAsStringAsync();
-            return Ok(balance);
-        }
-        return NotFound("Account balance not found for the specified currency.");
-    }
-
     // Get Basic User Info
-    [HttpGet("basic-userinfo/{accountHolderMSISDN}")]
+    [HttpGet("get-basic-user-info/{accountHolderMSISDN}")]
     public async Task<IActionResult> GetBasicUserInfo(string accountHolderMSISDN)
     {
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:GetBasicUserinfo"].Replace("{accountHolderMSISDN}", accountHolderMSISDN)}";
-        var response = await _httpClient.GetAsync(url);
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            var userInfo = await response.Content.ReadAsStringAsync();
-            return Ok(userInfo);
+            // Call CreateAccessToken to get the token
+            var accessTokenResponse = await CreateAccessToken(); // Now returns AccessTokenResponse directly
+
+            var accessToken = accessTokenResponse.access_token; // Extract access token
+
+            // Set up HttpClient for basic user info request
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            client.DefaultRequestHeaders.Add("X-Target-Environment", "sandbox");
+            client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _config["MomoApi:SubscriptionKey:dummyRemittance"]);
+
+            // Prepare URL for basic user info request
+            var url = $"{_config["MomoApi:BaseUrl"].TrimEnd('/')}/remittance/v1_0/accountholder/msisdn/{accountHolderMSISDN}/basicuserinfo";
+
+            // Make GET request for basic user info
+            var response = await client.GetAsync(url);
+
+            // Handle the response
+            if (response.IsSuccessStatusCode)
+            {
+                var userInfo = await response.Content.ReadAsStringAsync();
+                return Ok(new ApiResponse<string>
+                {
+                    Success = true,
+                    Data = userInfo,
+                    Message = "Basic user info retrieved successfully."
+                });
+            }
+
+            // Log or handle specific error responses if needed
+            var errorContent = await response.Content.ReadAsStringAsync();
+            return BadRequest(new ApiResponse<string>
+            {
+                Success = false,
+                Message = $"Failed to retrieve basic user info. Response: {errorContent}"
+            });
         }
-        return NotFound("User info not found.");
-    }
-
-    // Validate Account Holder Status
-    [HttpGet("validate-account/{accountHolderIdType}/{accountHolderId}")]
-    public async Task<IActionResult> ValidateAccountHolderStatus(string accountHolderIdType, string accountHolderId)
-    {
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:ValidateAccountHolderStatus"].Replace("{accountHolderIdType}", accountHolderIdType).Replace("{accountHolderId}", accountHolderId)}";
-        var response = await _httpClient.GetAsync(url);
-
-        if (response.IsSuccessStatusCode)
+        catch (Exception ex)
         {
-            var status = await response.Content.ReadAsStringAsync();
-            return Ok(status);
+            // Log and handle exceptions
+            return StatusCode(500, new ApiResponse<string>
+            {
+                Success = false,
+                Message = $"An error occurred: {ex.Message}"
+            });
         }
-        return NotFound("Account holder status not found.");
-    }
-
-    // Transfer
-    [HttpPost("transfer")]
-    public async Task<IActionResult> CreateTransfer([FromBody] Transfer transfer)
-    {
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:Transfer"]}";
-
-        // Set required headers
-        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-        _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", "sandbox"); // Adjust if needed
-
-        var response = await _httpClient.PostAsJsonAsync(url, transfer);
-
-        if (response.IsSuccessStatusCode)
-        {
-            await _transferRepository.CreateTransferAsync(transfer);
-            return Ok("Transfer created successfully.");
-        }
-        return BadRequest("Failed to create transfer.");
-    }
-
-    // Get Transfer Status
-    [HttpGet("transfer-status/{referenceId}")]
-    public async Task<IActionResult> GetTransferStatus(string referenceId)
-    {
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:GetTransferStatus"].Replace("{referenceId}", referenceId)}";
-        var response = await _httpClient.GetAsync(url);
-
-        if (response.IsSuccessStatusCode)
-        {
-            var status = await response.Content.ReadAsStringAsync();
-            return Ok(status);
-        }
-        return NotFound("Transfer status not found.");
-    }
-
-    // Get User Info with Consent
-    [HttpGet("userinfo-with-consent")]
-    public async Task<IActionResult> GetUserInfoWithConsent([FromQuery] string accountHolderMSISDN, [FromQuery] string consentId)
-    {
-        var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:GetUserInfoWithConsent"].Replace("{accountHolderMSISDN}", accountHolderMSISDN).Replace("{consentId}", consentId)}";
-        var response = await _httpClient.GetAsync(url);
-
-        if (response.IsSuccessStatusCode)
-        {
-            var userInfo = await response.Content.ReadAsStringAsync();
-            return Ok(userInfo);
-        }
-        return NotFound("User info not found with consent.");
     }
 }

@@ -28,7 +28,8 @@ namespace MomoProducts.Server.Migrations
                 name: "ApiKeys",
                 columns: table => new
                 {
-                    APIKey = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false)
+                    APIKey = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -40,7 +41,8 @@ namespace MomoProducts.Server.Migrations
                 columns: table => new
                 {
                     ReferenceId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    ProviderCallbackHost = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    ProviderCallbackHost = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -81,10 +83,9 @@ namespace MomoProducts.Server.Migrations
                 name: "Deposits",
                 columns: table => new
                 {
-                    ReferenceId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    ExternalId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     Amount = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Currency = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    ExternalId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     Payee_PartyIdType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Payee_PartyId = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     PayerMessage = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
@@ -92,7 +93,7 @@ namespace MomoProducts.Server.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Deposits", x => x.ReferenceId);
+                    table.PrimaryKey("PK_Deposits", x => x.ExternalId);
                 });
 
             migrationBuilder.CreateTable(
@@ -125,7 +126,8 @@ namespace MomoProducts.Server.Migrations
                     ExpiresIn = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Scope = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     RefreshToken = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
-                    RefreshTokenExpiredIn = table.Column<int>(type: "int", nullable: false)
+                    RefreshTokenExpiredIn = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -222,10 +224,9 @@ namespace MomoProducts.Server.Migrations
                 name: "Transfers",
                 columns: table => new
                 {
-                    ReferenceId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    ExternalId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     Amount = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Currency = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: false),
-                    ExternalId = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     Payee_PartyIdType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Payee_PartyId = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     PayerMessage = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
@@ -233,7 +234,7 @@ namespace MomoProducts.Server.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Transfers", x => x.ReferenceId);
+                    table.PrimaryKey("PK_Transfers", x => x.ExternalId);
                 });
         }
 

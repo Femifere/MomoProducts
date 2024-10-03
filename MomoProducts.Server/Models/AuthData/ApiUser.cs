@@ -4,5 +4,6 @@
     {
         public string ReferenceId { get; set; }
         public string ProviderCallbackHost { get; set; }
+        public DateTime? CreatedDate { get; set; }
     }
 }

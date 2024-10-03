@@ -35,7 +35,7 @@ namespace MomoProducts.Server.Controllers
             _apiKeyRepository = apiKeyRepository;
             _httpClient = httpClient;
             _authService = authService;
-            _subscriptionKey = _configuration["MomoApi:SubscriptionKey"];
+            _subscriptionKey = _configuration["MomoApi:SubscriptionKey:dummyCollections"];
         }
 
         // POST: api/Sandbox/CreateUser
@@ -74,7 +74,8 @@ namespace MomoProducts.Server.Controllers
             var apiUser = new ApiUser
             {
                 ReferenceId = referenceId,
-                ProviderCallbackHost = "Just a String"
+                ProviderCallbackHost = "Just a String",
+                CreatedDate = DateTime.Now // Assign current date and time
             };
 
             await _apiUserRepository.SaveApiUserAsync(apiUser);
@@ -157,6 +158,7 @@ namespace MomoProducts.Server.Controllers
             var apiKey = await response.Content.ReadFromJsonAsync<ApiKey>();
             if (apiKey != null)
             {
+                apiKey.CreatedDate = DateTime.Now; // Assign current date and time
                 await _apiKeyRepository.SaveApiKeyAsync(apiKey);
                 return Ok(new ApiResponse<ApiKey>
                 {

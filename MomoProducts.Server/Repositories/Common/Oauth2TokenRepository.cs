@@ -1,9 +1,11 @@
-﻿namespace MomoProducts.Server.Repositories.Common
-{
-    using Microsoft.EntityFrameworkCore;
-    using MomoProducts.Server.Interfaces.Common;
-    using MomoProducts.Server.Models.Common;
+﻿using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using MomoProducts.Server.Interfaces.Common;
+using MomoProducts.Server.Models.Common;
 
+namespace MomoProducts.Server.Repositories.AuthData
+{
     public class Oauth2TokenRepository : IOauth2TokenRepository
     {
         private readonly AppDbContext _context;
@@ -15,23 +17,16 @@
 
         public async Task<Oauth2Token> GetOauth2TokenAsync()
         {
-            return await _context.Set<Oauth2Token>().FirstOrDefaultAsync();
+            return await _context.Set<Oauth2Token>()
+                .OrderByDescending(t => t.CreatedAt)
+                .FirstOrDefaultAsync();
         }
 
-        public async Task SaveOauth2TokenAsync(Oauth2Token token)
+        public async Task<Oauth2Token> SaveOauth2TokenAsync(Oauth2Token token)
         {
-            var existingToken = await GetOauth2TokenAsync();
-            if (existingToken != null)
-            {
-                existingToken.AccessToken = token.AccessToken;
-                existingToken.ExpiresIn = token.ExpiresIn;
-                _context.Set<Oauth2Token>().Update(existingToken);
-            }
-            else
-            {
-                await _context.Set<Oauth2Token>().AddAsync(token);
-            }
+            await _context.Set<Oauth2Token>().AddAsync(token);
             await _context.SaveChangesAsync();
+            return token;
         }
     }
 }

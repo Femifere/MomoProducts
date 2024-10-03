@@ -1,34 +1,39 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MomoProducts.Server.Models;
-using MomoProducts.Server.Models.Collections;
-using MomoProducts.Server.Models.Disbursements;
-using MomoProducts.Server.Models.Common;
 using MomoProducts.Server.Models.AuthData;
+using MomoProducts.Server.Models.Collections;
+using MomoProducts.Server.Models.Common;
+using MomoProducts.Server.Models.Disbursements;
 using MomoProducts.Server.Models.Remittance;
-
-
 
 public class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+    {
+    }
 
     public DbSet<ApiKey> ApiKeys { get; set; }
+
     public DbSet<ApiUser> ApiUsers { get; set; }
 
     // Collections
     public DbSet<Invoice> Invoices { get; set; }
+
     public DbSet<Payment> Payments { get; set; }
+
     public DbSet<PreApproval> PreApprovals { get; set; }
+
     public DbSet<RequesttoPay> RequestsToPay { get; set; }
+
     public DbSet<RequestToWithdraw> RequestsToWithdraw { get; set; }
-    
 
     // Disbursements
     public DbSet<Deposit> Deposits { get; set; }
+
     public DbSet<Refund> Refunds { get; set; }
 
     // Common
     public DbSet<AccessToken> AccessTokens { get; set; }
+
     public DbSet<Oauth2Token> Oauth2Tokens { get; set; }
 
     public DbSet<Transfer> Transfers { get; set; }
@@ -186,11 +191,9 @@ public class AppDbContext : DbContext
         // RequesttoPay configuration
         modelBuilder.Entity<RequesttoPay>(entity =>
         {
-            entity.HasKey(r => r.ReferenceId);
+            entity.HasKey(r => r.ExternalId);
 
-            entity.Property(r => r.ReferenceId)
-                  .IsRequired()
-                  .HasMaxLength(255);
+            
 
             entity.Property(r => r.Amount)
                   .HasMaxLength(50);
@@ -264,11 +267,7 @@ public class AppDbContext : DbContext
         // Deposit configuration
         modelBuilder.Entity<Deposit>(entity =>
         {
-            entity.HasKey(d => d.ReferenceId);
-
-            entity.Property(d => d.ReferenceId)
-                  .IsRequired()
-                  .HasMaxLength(255);
+            entity.HasKey(d => d.ExternalId);
 
             entity.Property(d => d.Amount)
                   .HasMaxLength(50);
@@ -328,11 +327,7 @@ public class AppDbContext : DbContext
         // Transfer configuration
         modelBuilder.Entity<Transfer>(entity =>
         {
-            entity.HasKey(t => t.ReferenceId);
-
-            entity.Property(t => t.ReferenceId)
-                  .IsRequired()
-                  .HasMaxLength(255);
+            entity.HasKey(t => t.ExternalId);
 
             entity.Property(t => t.Amount)
                   .HasMaxLength(50);
@@ -442,8 +437,10 @@ public class AppDbContext : DbContext
         // AccessToken configuration
         modelBuilder.Entity<AccessToken>(entity =>
         {
+            // Define the primary key
             entity.HasKey(a => a.accessToken);
 
+            // Configure properties
             entity.Property(a => a.accessToken)
                   .IsRequired()
                   .HasMaxLength(500);
@@ -453,7 +450,7 @@ public class AppDbContext : DbContext
                   .HasMaxLength(50);
 
             entity.Property(a => a.ExpiresIn)
-                  .IsRequired();
+                  .IsRequired(); // If ExpiresIn is DateTime, this is fine.
         });
 
         // Oauth2Token configuration
@@ -481,6 +478,5 @@ public class AppDbContext : DbContext
             entity.Property(o => o.RefreshTokenExpiredIn)
                   .IsRequired();
         });
-        
     }
 }

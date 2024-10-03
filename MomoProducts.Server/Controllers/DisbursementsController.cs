@@ -1,331 +1,181 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using MomoProducts.Server.Interfaces.Disbursements;
-using MomoProducts.Server.Interfaces.Common;
-using MomoProducts.Server.Models.Disbursements;
-using MomoProducts.Server.Models.Common;
-using MomoProducts.Server.s;
-using System.Threading.Tasks;
-using MomoProducts.Server.Services;
-using System.Net.Http;
-using MomoProducts.Server.s.Common;
-using MomoProducts.Server.s.Disbursements;
-
-namespace MomoProducts.Server.Controllers
+﻿namespace MomoProducts.Server.Controllers
 {
-    [ApiController]
+    using MomoProducts.Server.Interfaces.Disbursements;
+    using MomoProducts.Server.Models.Common;
+    using MomoProducts.Server.Models.Disbursements;
+    using MomoProducts.Server.Services;
+    using Microsoft.AspNetCore.Mvc;
+    using Newtonsoft.Json;
+    using System;
+    using System.Net.Http;
+    using System.Net.Http.Headers;
+    using System.Text;
+    using System.Threading.Tasks;
+    using MomoProducts.Server.Interfaces.Common;
+
     [Route("api/[controller]")]
+    [ApiController]
     public class DisbursementsController : ControllerBase
     {
         private readonly IDepositRepository _depositRepository;
-        private readonly IRefundRepository _refundRepository;
         private readonly ITransferRepository _transferRepository;
-        private readonly IAccessTokenRepository _accessTokenRepository;
-        private readonly IOauth2TokenRepository _oauth2TokenRepository;
-        private readonly HttpClient _httpClient;
         private readonly IConfiguration _config;
+        private readonly ILogger _logger;
         private readonly AuthService _authService;
+        private readonly string _subscriptionKey;
 
         public DisbursementsController(
             IDepositRepository depositRepository,
-            IRefundRepository refundRepository,
             ITransferRepository transferRepository,
-            IAccessTokenRepository accessTokenRepository,
-            IOauth2TokenRepository oauth2TokenRepository,
-            HttpClient httpClient,
             IConfiguration config,
+            ILogger<DisbursementsController> logger,
             AuthService authService)
         {
             _depositRepository = depositRepository;
-            _refundRepository = refundRepository;
             _transferRepository = transferRepository;
-            _accessTokenRepository = accessTokenRepository;
-            _oauth2TokenRepository = oauth2TokenRepository;
-            _httpClient = httpClient;
             _config = config;
+            _logger = logger;
             _authService = authService;
+            _subscriptionKey = _config["MomoApi:SubscriptionKey:dummyDisbursements"];
         }
 
-        // BC Authorize
-        [HttpPost("bc-authorize")]
-        public async Task<IActionResult> AuthorizeBusinessClient([FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
+        // DTO for Access Token Response
+        public class AccessTokenResponse2
         {
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:bc-authorize"]}";
-
-            var bearerToken = await _authService.GetLatestOauth2TokenWithBearerAsync();
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-            if (!string.IsNullOrEmpty(xCallbackUrl))
-            {
-                _httpClient.DefaultRequestHeaders.Add("X-Callback-Url", xCallbackUrl);
-            }
-
-            var response = await _httpClient.PostAsync(url, null);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return BadRequest("Authorization failed.");
+            public string access_token { get; set; }
+            public string token_type { get; set; }
+            public int expires_in { get; set; }
         }
 
         // Create Access Token
         [HttpPost("create-access-token")]
-        public async Task<IActionResult> CreateAccessToken()
+        public async Task<AccessTokenResponse2> CreateAccessToken()
         {
-            var encodedCredentials = await _authService.GetEncodedCredentialsAsync();
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", encodedCredentials);
-
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:CreateAccessToken"]}";
-            var response = await _httpClient.PostAsync(url, null);
-
-            if (response.IsSuccessStatusCode)
+            try
             {
-                var token = await response.Content.ReadAsStringAsync();
-                return Ok(token);
+                var encodedCredentials = await _authService.GetEncodedCredentialsAsync();
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", encodedCredentials);
+                client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _config["MomoApi:SubscriptionKey:dummyRemittance"]);
+
+                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:CreateAccessToken"]}";
+                var response = await client.PostAsync(url, null);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var tokenJson = await response.Content.ReadAsStringAsync();
+                    return JsonConvert.DeserializeObject<AccessTokenResponse2>(tokenJson);
+                }
+
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to create access token. Response: {errorContent}");
             }
-            return BadRequest("Failed to create access token.");
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                }
+                throw;
+            }
         }
 
-        // Create OAuth2 Token
-        [HttpPost("create-oauth2-token")]
-        public async Task<IActionResult> CreateOauth2Token([FromHeader] string xTargetEnvironment)
+        // Create Deposit
+        [HttpPost("create-deposit")]
+        public async Task<IActionResult> CreateDeposit([FromBody] Deposit request)
         {
-            var encodedCredentials = await _authService.GetEncodedCredentialsAsync();
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", encodedCredentials);
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:CreateOauth2Token"]}";
-            var response = await _httpClient.PostAsync(url, null);
-
-            if (response.IsSuccessStatusCode)
+            try
             {
-                var token = await response.Content.ReadAsStringAsync();
-                return Ok(token);
+                // Check for required fields and assign default values
+                if (string.IsNullOrEmpty(request.Amount) || string.IsNullOrEmpty(request.Currency) ||
+                    string.IsNullOrEmpty(request.ExternalId) || request.Payee == null || string.IsNullOrEmpty(request.Payee.PartyId))
+                {
+                    return BadRequest(new { Success = false, Message = "Deposit details are incomplete." });
+                }
+
+                var accessTokenResponse = await CreateAccessToken();
+                var accessToken = accessTokenResponse.access_token;
+
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                client.DefaultRequestHeaders.Add("X-Reference-Id", Guid.NewGuid().ToString());
+                client.DefaultRequestHeaders.Add("X-Target-Environment", "sandbox");
+                client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _subscriptionKey);
+                client.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue { NoCache = true };
+
+                var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Disbursements:Deposit-V2"]}";
+
+                var jsonContent = JsonConvert.SerializeObject(new
+                {
+                    amount = request.Amount,
+                    currency = request.Currency,
+                    externalId = request.ExternalId,
+                    payee = new
+                    {
+                        partyIdType = request.Payee.PartyIdType,
+                        partyId = request.Payee.PartyId
+                    },
+                    payerMessage = request.PayerMessage,
+                    payeeNote = request.PayeeNote
+                });
+
+                var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                var response = await client.PostAsync(url, httpContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                    await _depositRepository.CreateDepositAsync(request); // Store deposit in database
+                    return Ok(new { Success = true, Data = result });
+                }
+
+                var errorContent = await response.Content.ReadAsStringAsync();
+                return BadRequest(new { Success = false, Message = $"Failed to create deposit. Response: {errorContent}" });
             }
-            return BadRequest("Failed to create OAuth2 token.");
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Success = false, Message = $"An error occurred: {ex.Message}" });
+            }
         }
 
-        // Deposit Endpoints
-        [HttpPost("v1_0/deposit")]
-        public async Task<IActionResult> CreateDepositV1([FromBody] Deposit deposit, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
+
+        // Get Deposit Status
+        [HttpGet("get-deposit-status/{referenceId}")]
+        public async Task<IActionResult> GetDepositStatus(string referenceId)
         {
-            if (deposit == null)
-                return BadRequest("Deposit details are required.");
-
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Reference-Id", xReferenceId);
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-            if (!string.IsNullOrEmpty(xCallbackUrl))
+            try
             {
-                _httpClient.DefaultRequestHeaders.Add("X-Callback-Url", xCallbackUrl);
+                var accessTokenResponse = await CreateAccessToken();
+                var accessToken = accessTokenResponse.access_token;
+
+                using var client = new HttpClient();
+
+                // Set request headers
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                client.DefaultRequestHeaders.Add("X-Target-Environment", "sandbox");
+                client.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue { NoCache = true };
+                client.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", _subscriptionKey);
+
+                var uri = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Deposits:GetDepositStatus"].Replace("{referenceId}", referenceId)}";
+                var response = await client.GetAsync(uri);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                    return Ok(new { Success = true, Data = result });
+                }
+
+                var errorContent = await response.Content.ReadAsStringAsync();
+                return BadRequest(new { Success = false, Message = $"Failed to retrieve deposit status. Response: {errorContent}" });
             }
-
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:v1_0:deposit"]}";
-            var response = await _httpClient.PostAsJsonAsync(url, deposit);
-
-            if (response.IsSuccessStatusCode)
+            catch (Exception ex)
             {
-                return Ok(await response.Content.ReadAsStringAsync());
+                return StatusCode(500, new { Success = false, Message = $"An error occurred: {ex.Message}" });
             }
-            return BadRequest("Failed to create deposit.");
         }
 
-        [HttpPost("v2_0/deposit")]
-        public async Task<IActionResult> CreateDepositV2([FromBody] Deposit deposit, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
-        {
-            return await CreateDepositV1(deposit, xReferenceId, xTargetEnvironment, xCallbackUrl); // Reuse the same logic
-        }
-
-        [HttpGet("account/balance")]
-        public async Task<IActionResult> GetAccountBalance([FromHeader] string xTargetEnvironment)
-        {
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:account/balance"]}";
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-
-            var response = await _httpClient.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return BadRequest("Failed to retrieve account balance.");
-        }
-
-        [HttpGet("account/balance/{currency}")]
-        public async Task<IActionResult> GetAccountBalanceInSpecificCurrency(string currency, [FromHeader] string xTargetEnvironment)
-        {
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:account/balance"]}/{currency}";
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-
-            var response = await _httpClient.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return BadRequest("Failed to retrieve account balance in specified currency.");
-        }
-
-        [HttpGet("accountholder/{accountHolderIdType}/{accountHolderId}/basicuserinfo")]
-        public async Task<IActionResult> GetBasicUserinfo(string accountHolderIdType, string accountHolderId, [FromHeader] string xTargetEnvironment)
-        {
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:accountholder"]}/{accountHolderIdType}/{accountHolderId}/basicuserinfo";
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-
-            var response = await _httpClient.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return BadRequest("Failed to retrieve basic user info.");
-        }
-
-        [HttpGet("deposit/{referenceId}")]
-        public async Task<IActionResult> GetDepositStatus(string referenceId, [FromHeader] string xTargetEnvironment)
-        {
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:deposit"]}/{referenceId}";
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-
-            var response = await _httpClient.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return NotFound("Deposit not found.");
-        }
-
-        // Refund Endpoints
-        [HttpPost("v1_0/refund")]
-        public async Task<IActionResult> CreateRefundV1([FromBody] Refund refund, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
-        {
-            if (refund == null)
-                return BadRequest("Refund details are required.");
-
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Reference-Id", xReferenceId);
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-            if (!string.IsNullOrEmpty(xCallbackUrl))
-            {
-                _httpClient.DefaultRequestHeaders.Add("X-Callback-Url", xCallbackUrl);
-            }
-
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:v1_0:refund"]}";
-            var response = await _httpClient.PostAsJsonAsync(url, refund);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return BadRequest("Failed to create refund.");
-        }
-
-        [HttpPost("v2_0/refund")]
-        public async Task<IActionResult> CreateRefundV2([FromBody] Refund refund, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
-        {
-            return await CreateRefundV1(refund, xReferenceId, xTargetEnvironment, xCallbackUrl); // Reuse the same logic
-        }
-
-        [HttpGet("refund/{referenceId}")]
-        public async Task<IActionResult> GetRefundStatus(string referenceId, [FromHeader] string xTargetEnvironment)
-        {
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:refund"]}/{referenceId}";
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-
-            var response = await _httpClient.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return NotFound("Refund not found.");
-        }
-
-        // Transfer Endpoints
-        [HttpPost("v1_0/transfer")]
-        public async Task<IActionResult> CreateTransferV1([FromBody] Transfer transfer, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
-        {
-            if (transfer == null)
-                return BadRequest("Transfer details are required.");
-
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Reference-Id", xReferenceId);
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-            if (!string.IsNullOrEmpty(xCallbackUrl))
-            {
-                _httpClient.DefaultRequestHeaders.Add("X-Callback-Url", xCallbackUrl);
-            }
-
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:v1_0:transfer"]}";
-            var response = await _httpClient.PostAsJsonAsync(url, transfer);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return BadRequest("Failed to create transfer.");
-        }
-
-        [HttpPost("v2_0/transfer")]
-        public async Task<IActionResult> CreateTransferV2([FromBody] Transfer transfer, [FromHeader] string xReferenceId, [FromHeader] string xTargetEnvironment, [FromHeader] string xCallbackUrl = null)
-        {
-            return await CreateTransferV1(transfer, xReferenceId, xTargetEnvironment, xCallbackUrl); // Reuse the same logic
-        }
-
-        [HttpGet("transfer/{referenceId}")]
-        public async Task<IActionResult> GetTransferStatus(string referenceId, [FromHeader] string xTargetEnvironment)
-        {
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Remittance:transfer"]}/{referenceId}";
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-
-            var response = await _httpClient.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return NotFound("Transfer not found.");
-        }
-        // Get User Info With Consent
-        [HttpGet("userinfo")]
-        public async Task<IActionResult> GetUserInfoWithConsent([FromHeader] string xTargetEnvironment)
-        {
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:GetUserInfoWithConsent"]}";
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-
-            var response = await _httpClient.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return NotFound("User info not found or access denied.");
-        }
-
-        // Validate Account Holder Status
-        [HttpGet("account-holder-status/{accountHolderIdType}/{accountHolderId}")]
-        public async Task<IActionResult> ValidateAccountHolderStatus(string accountHolderIdType, string accountHolderId, [FromHeader] string xTargetEnvironment)
-        {
-            var url = $"{_config["MomoApi:BaseUrl"]}{_config["MomoApi:Collections:ValidateAccountHolderStatus"].Replace("{accountHolderIdType}", accountHolderIdType).Replace("{accountHolderId}", accountHolderId)}";
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await _authService.GetLatestOauth2TokenWithBearerAsync());
-            _httpClient.DefaultRequestHeaders.Add("X-Target-Environment", xTargetEnvironment);
-
-            var response = await _httpClient.GetAsync(url);
-
-            if (response.IsSuccessStatusCode)
-            {
-                return Ok(await response.Content.ReadAsStringAsync());
-            }
-            return NotFound("Account holder status not found.");
-        }
     }
 }
-

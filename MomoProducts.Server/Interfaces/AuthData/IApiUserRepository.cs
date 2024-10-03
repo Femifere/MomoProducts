@@ -1,5 +1,5 @@
 ﻿using MomoProducts.Server.Models.AuthData;
-using MomoProducts.Server.s.AuthData;
+
 
 namespace MomoProducts.Server.Interfaces.AuthData
 {
@@ -7,5 +7,6 @@ namespace MomoProducts.Server.Interfaces.AuthData
     {
         Task<ApiUser> GetApiUserAsync(string referenceId);
         Task<ApiUser> SaveApiUserAsync(ApiUser user);
+        Task<ApiUser> GetLatestApiUserAsync();
     }
 }

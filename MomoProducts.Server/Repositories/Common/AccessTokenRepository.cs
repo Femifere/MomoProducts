@@ -3,7 +3,7 @@
     using Microsoft.EntityFrameworkCore;
     using MomoProducts.Server.Interfaces.Common;
     using MomoProducts.Server.Models.Common;
-
+    using System;
 
     public class AccessTokenRepository : IAccessTokenRepository
     {
@@ -19,20 +19,30 @@
             return await _context.Set<AccessToken>().FirstOrDefaultAsync();
         }
 
-        public async Task SaveAccessTokenAsync(AccessToken token)
+        public async Task<AccessToken> SaveAccessTokenAsync(AccessToken token)
         {
             var existingToken = await GetAccessTokenAsync();
-            if (existingToken != null)
+
+            if (existingToken == null)
             {
-                existingToken.accessToken = token.accessToken;
-                existingToken.ExpiresIn = token.ExpiresIn;
-                _context.Set<AccessToken>().Update(existingToken);
+                // Add the new token
+                await _context.Set<AccessToken>().AddAsync(token);
             }
             else
             {
-                await _context.Set<AccessToken>().AddAsync(token);
+                // Update the existing token
+                _context.Entry(existingToken).CurrentValues.SetValues(token);
             }
+
             await _context.SaveChangesAsync();
+            return token; // Return the saved or updated token
+        }
+
+
+
+        public bool IsTokenExpired(AccessToken token)
+        {
+            return DateTime.UtcNow >= token.ExpiresIn; // Check if the token is expired
         }
     }
 }

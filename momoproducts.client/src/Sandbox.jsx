@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import axios from 'axios';
+import './Sandbox.css'; // Import the CSS file
 
 const Sandbox = () => {
     const [apiUser, setApiUser] = useState(null);
     const [apiKey, setApiKey] = useState(null);
     const [referenceId, setReferenceId] = useState('');
     const [error, setError] = useState(null);
-    const [requestData, setRequestData] = useState(null); // To hold request data
-    const [responseData, setResponseData] = useState(null); // To hold response data
+    const [requestData, setRequestData] = useState(null);
+    const [responseData, setResponseData] = useState(null);
+    const [showResponse, setShowResponse] = useState(false); // For smooth transition
 
     // Function to create a user
     const createUser = async () => {
@@ -39,6 +41,8 @@ const Sandbox = () => {
                 body: { providerCallbackHost: "Just a String" }
             });
             setResponseData(response.data);
+            setShowResponse(false); // Reset the response visibility
+            setTimeout(() => setShowResponse(true), 50); // Allow the transition to trigger
         } catch (err) {
             setError(err.message || 'Error creating user.');
             setResponseData(null); // Clear previous response data
@@ -74,6 +78,8 @@ const Sandbox = () => {
                 },
             });
             setResponseData(response.data);
+            setShowResponse(false);
+            setTimeout(() => setShowResponse(true), 50);
         } catch (err) {
             setError(err.message || 'Error fetching user.');
             setResponseData(null); // Clear previous response data
@@ -111,6 +117,8 @@ const Sandbox = () => {
                 },
             });
             setResponseData(response.data);
+            setShowResponse(false);
+            setTimeout(() => setShowResponse(true), 50);
         } catch (err) {
             setError(err.message || 'Error creating API key.');
             setResponseData(null); // Clear previous response data
@@ -134,11 +142,11 @@ const Sandbox = () => {
     };
 
     return (
-        <div>
+        <div className="sandbox-container">
             <h1>Sandbox API User Management</h1>
-            {error && <div style={{ color: 'red' }}>Error: {error}</div>} {/* Display error message */}
-            <button onClick={createUser}>Create User</button>
-            <div>
+            {error && <div className="error-message">Error: {error}</div>}
+            <button className="action-button" onClick={createUser}>Create User</button>
+            <div className="input-group">
                 <h2>Get User</h2>
                 <input
                     type="text"
@@ -146,38 +154,42 @@ const Sandbox = () => {
                     onChange={(e) => setReferenceId(e.target.value)}
                     placeholder="Enter Reference ID"
                 />
-                <button onClick={handleGetUser}>Fetch User</button>
+                <button className="action-button" onClick={handleGetUser}>Fetch User</button>
             </div>
-            <div>
+            <div className="input-group">
                 <h2>Create API Key</h2>
-                <button onClick={handleCreateAPIKey}>Create API Key</button>
+                <button className="action-button" onClick={handleCreateAPIKey}>Create API Key</button>
             </div>
+
+            {/* Display API User */}
             {apiUser && (
-                <div>
+                <div className={`response-container ${showResponse ? 'fade-in' : 'fade-out'}`}>
                     <h3>API User:</h3>
-                    <pre>{JSON.stringify(apiUser, null, 2)}</pre>
+                    <div className="response-data">{JSON.stringify(apiUser, null, 2)}</div>
                 </div>
             )}
+
+            {/* Display API Key */}
             {apiKey && (
-                <div>
+                <div className={`response-container ${showResponse ? 'fade-in' : 'fade-out'}`}>
                     <h3>API Key:</h3>
-                    <pre>{JSON.stringify(apiKey, null, 2)}</pre>
+                    <div className="response-data">{JSON.stringify(apiKey, null, 2)}</div>
                 </div>
             )}
 
             {/* Display Request Data */}
             {requestData && (
-                <div>
+                <div className={`response-container ${showResponse ? 'fade-in' : 'fade-out'}`}>
                     <h3>Request Data:</h3>
-                    <pre>{JSON.stringify(requestData, null, 2)}</pre>
+                    <div className="response-data">{JSON.stringify(requestData, null, 2)}</div>
                 </div>
             )}
 
             {/* Display Response Data */}
             {responseData && (
-                <div>
+                <div className={`response-container ${showResponse ? 'fade-in' : 'fade-out'}`}>
                     <h3>Response Data:</h3>
-                    <pre>{JSON.stringify(responseData, null, 2)}</pre>
+                    <div className="response-data">{JSON.stringify(responseData, null, 2)}</div>
                 </div>
             )}
         </div>

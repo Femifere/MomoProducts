@@ -14,9 +14,9 @@
             _context = context;
         }
 
-        public async Task<RequesttoPay> GetRequestToPayByReferenceIdAsync(string referenceId)
+        public async Task<RequesttoPay> GetRequestToPayByExternalIdAsync(string externalId)
         {
-            return await _context.Set<RequesttoPay>().FirstOrDefaultAsync(rtp => rtp.ReferenceId == referenceId);
+            return await _context.Set<RequesttoPay>().FirstOrDefaultAsync(rtp => rtp.ExternalId == externalId);
         }
 
         public async Task<IEnumerable<RequesttoPay>> GetAllRequestsToPayAsync()

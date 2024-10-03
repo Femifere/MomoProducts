@@ -4,7 +4,7 @@ namespace MomoProducts.Server.Models.Collections
 {
     public class RequesttoPay
     {
-        public string ReferenceId { get; set; }
+        
 
         public string Amount { get; set; }
 

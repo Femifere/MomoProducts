@@ -13,9 +13,9 @@
             _context = context;
         }
 
-        public async Task<Transfer> GetTransferByReferenceIdAsync(string referenceId)
+        public async Task<Transfer> GetTransferByExternalIdAsync(string externalId)
         {
-            return await _context.Set<Transfer>().FirstOrDefaultAsync(t => t.ReferenceId == referenceId);
+            return await _context.Set<Transfer>().FirstOrDefaultAsync(t => t.ExternalId == externalId);
         }
 
         public async Task<IEnumerable<Transfer>> GetAllTransfersAsync()

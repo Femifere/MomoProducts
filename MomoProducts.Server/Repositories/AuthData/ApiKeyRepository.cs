@@ -1,8 +1,10 @@
-﻿namespace MomoProducts.Server.Repositories.AuthData
+﻿using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using MomoProducts.Server.Interfaces.AuthData;
+using MomoProducts.Server.Models.AuthData;
+
+namespace MomoProducts.Server.Repositories.AuthData
 {
-    using Microsoft.EntityFrameworkCore;
-    using MomoProducts.Server.Interfaces.AuthData;
-    using MomoProducts.Server.Models.AuthData;
     public class ApiKeyRepository : IApiKeyRepository
     {
         private readonly AppDbContext _context;
@@ -36,5 +38,12 @@
 
             return apiKey;
         }
+        public async Task<ApiKey> GetLatestApiKeyAsync()
+        {
+            return await _context.Set<ApiKey>()
+                                 .OrderByDescending(k => k.CreatedDate) // Order by CreatedDate
+                                 .FirstOrDefaultAsync();
+        }
+
     }
 }

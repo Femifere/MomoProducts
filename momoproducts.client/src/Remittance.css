@@ -1,0 +1,88 @@
+.remittance-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    background-color: #ffffff;
+    font-family: 'Arial', sans-serif;
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+    .input-group input {
+        width: calc(100% - 120px);
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+        margin-right: 10px;
+    }
+
+        .input-group input:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+.action-button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+    .action-button:hover {
+        background-color: #0056b3;
+    }
+
+.error-message {
+    color: red;
+    margin: 10px 0;
+    text-align: center;
+}
+
+.response-container {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.fade-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.fade-out {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.response-data {
+    font-family: 'Courier New', monospace;
+    color: black;
+    white-space: pre-wrap; /* Allows wrapping of JSON data */
+    word-wrap: break-word; /* Break long words */
+    max-width: 100%; /* Ensure the text doesn't exceed the container's width */
+    overflow: hidden; /* Hide any overflowing content */
+    padding: 10px;
+    background-color: #f1f1f1; /* Optional: adds background to make the text more readable */
+    border-radius: 4px; /* Optional: makes it look nicer with rounded corners */
+}
+

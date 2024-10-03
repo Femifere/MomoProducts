@@ -27,6 +27,9 @@ namespace MomoProducts.Server.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("APIKey");
 
                     b.ToTable("ApiKeys");
@@ -37,6 +40,9 @@ namespace MomoProducts.Server.Migrations
                     b.Property<string>("ReferenceId")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime?>("CreatedDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("ProviderCallbackHost")
                         .IsRequired()
@@ -239,6 +245,9 @@ namespace MomoProducts.Server.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("ExpiresIn")
                         .HasColumnType("datetime2");
 
@@ -267,7 +276,7 @@ namespace MomoProducts.Server.Migrations
 
             modelBuilder.Entity("MomoProducts.Server.Models.Common.Transfer", b =>
                 {
-                    b.Property<string>("ReferenceId")
+                    b.Property<string>("ExternalId")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
@@ -281,11 +290,6 @@ namespace MomoProducts.Server.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
-                    b.Property<string>("ExternalId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
                     b.Property<string>("PayeeNote")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -296,14 +300,14 @@ namespace MomoProducts.Server.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.HasKey("ReferenceId");
+                    b.HasKey("ExternalId");
 
                     b.ToTable("Transfers");
                 });
 
             modelBuilder.Entity("MomoProducts.Server.Models.Disbursements.Deposit", b =>
                 {
-                    b.Property<string>("ReferenceId")
+                    b.Property<string>("ExternalId")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
@@ -317,11 +321,6 @@ namespace MomoProducts.Server.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
-                    b.Property<string>("ExternalId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
                     b.Property<string>("PayeeNote")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -332,7 +331,7 @@ namespace MomoProducts.Server.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.HasKey("ReferenceId");
+                    b.HasKey("ExternalId");
 
                     b.ToTable("Deposits");
                 });
@@ -656,7 +655,7 @@ namespace MomoProducts.Server.Migrations
                 {
                     b.OwnsOne("MomoProducts.Server.Models.Common.Payee", "Payee", b1 =>
                         {
-                            b1.Property<string>("TransferReferenceId")
+                            b1.Property<string>("TransferExternalId")
                                 .HasColumnType("nvarchar(255)");
 
                             b1.Property<string>("PartyId")
@@ -671,12 +670,12 @@ namespace MomoProducts.Server.Migrations
                                 .HasColumnType("nvarchar(50)")
                                 .HasColumnName("Payee_PartyIdType");
 
-                            b1.HasKey("TransferReferenceId");
+                            b1.HasKey("TransferExternalId");
 
                             b1.ToTable("Transfers");
 
                             b1.WithOwner()
-                                .HasForeignKey("TransferReferenceId");
+                                .HasForeignKey("TransferExternalId");
                         });
 
                     b.Navigation("Payee")
@@ -687,7 +686,7 @@ namespace MomoProducts.Server.Migrations
                 {
                     b.OwnsOne("MomoProducts.Server.Models.Common.Payee", "Payee", b1 =>
                         {
-                            b1.Property<string>("DepositReferenceId")
+                            b1.Property<string>("DepositExternalId")
                                 .HasColumnType("nvarchar(255)");
 
                             b1.Property<string>("PartyId")
@@ -702,12 +701,12 @@ namespace MomoProducts.Server.Migrations
                                 .HasColumnType("nvarchar(50)")
                                 .HasColumnName("Payee_PartyIdType");
 
-                            b1.HasKey("DepositReferenceId");
+                            b1.HasKey("DepositExternalId");
 
                             b1.ToTable("Deposits");
 
                             b1.WithOwner()
-                                .HasForeignKey("DepositReferenceId");
+                                .HasForeignKey("DepositExternalId");
                         });
 
                     b.Navigation("Payee")

@@ -4,7 +4,7 @@
 
     public class Deposit
     {
-        public string ReferenceId { get; set; }
+        
 
         public string Amount { get; set; }
 

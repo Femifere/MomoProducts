@@ -24,7 +24,7 @@ builder.Services.AddScoped<IApiUserRepository, ApiUserRepository>();
 builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPreApprovalRepository, PreApprovalRepository>();
-builder.Services.AddScoped<IRequesttoPayRepository, RequesttoPayRepository>();
+builder.Services.AddScoped<IRequestToPayRepository, RequestToPayRepository>();
 builder.Services.AddScoped<IRequestToWithdrawRepository, RequestToWithdrawRepository>();
 builder.Services.AddScoped<IAccessTokenRepository, AccessTokenRepository>();
 builder.Services.AddScoped<IMoneyRepository, MoneyRepository>();
@@ -40,8 +40,6 @@ builder.Services.AddScoped<ApiUserRepository>();
 builder.Services.AddScoped<ApiKeyRepository>();
 
 
-// Add AutoMapper for object mapping
-builder.Services.AddAutoMapper(typeof(MappingProfile));
 
 // Add controllers to the service collection
 builder.Services.AddControllers();

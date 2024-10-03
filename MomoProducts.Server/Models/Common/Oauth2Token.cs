@@ -13,5 +13,7 @@
         public string RefreshToken { get; set; }
 
         public int RefreshTokenExpiredIn { get; set; }
+
+        public DateTime CreatedAt { get; internal set; }
     }
 }
